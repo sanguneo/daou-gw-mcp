@@ -25,7 +25,7 @@ import {
   saveSession,
   searchMail,
   validateSession
-} from "./chunk-ZWVM2TRF.js";
+} from "./chunk-UFBOBCAX.js";
 
 // src/mcp.ts
 import * as readline from "readline";

@@ -768,7 +768,8 @@ async function clockOutAttendance(baseUrl, session) {
   if (status.clockedOut) {
     return { ok: true, action: "out", userId: status.userId, today: status.today, status: "already" };
   }
-  return { ok: true, action: "out", userId: status.userId, today: status.today, status: "dryrun", dryRun: true };
+  await clockAttendance(baseUrl, status.userId, /* @__PURE__ */ new Date(), "clockOut", session);
+  return { ok: true, action: "out", userId: status.userId, today: status.today, status: "done" };
 }
 function renderAttendanceActionResult(result) {
   switch (result.status) {
@@ -1015,4 +1016,4 @@ export {
   approvalReference,
   approvalCount
 };
-//# sourceMappingURL=chunk-ZWVM2TRF.js.map
+//# sourceMappingURL=chunk-UFBOBCAX.js.map

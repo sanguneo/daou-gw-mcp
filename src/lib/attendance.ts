@@ -211,7 +211,8 @@ export async function clockOutAttendance(baseUrl: string, session: Session): Pro
   if (status.clockedOut) {
     return { ok: true, action: 'out', userId: status.userId, today: status.today, status: 'already' };
   }
-  return { ok: true, action: 'out', userId: status.userId, today: status.today, status: 'dryrun', dryRun: true };
+  await clockAttendance(baseUrl, status.userId, new Date(), 'clockOut', session);
+  return { ok: true, action: 'out', userId: status.userId, today: status.today, status: 'done' };
 }
 
 export function renderAttendanceActionResult(result: AttendanceActionResult): string {
