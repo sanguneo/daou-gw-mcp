@@ -1,7 +1,7 @@
 ---
 name: daou-gw
 description: Daou GW 작업은 daou-gw-cli 또는 daou-gw-mcp로만 빠르게 처리한다. 로그인, 세션, 근태, 메일, 캘린더, 전자결재 작업을 필요한 명령만 실행해 처리한다.
-version: 3.0.0
+version: 3.0.3
 author: Hermes Agent
 license: MIT
 metadata:
@@ -153,12 +153,14 @@ MCP:
 3. formatter 문제와 실제 빈 메일함을 구분한다.
 
 반복 알림/서비스 메일 정리:
-- 사용자가 특정 서비스/알림 메일 삭제를 요청하면 추가 탐색 없이 각 키워드를 `mail search --query <keyword> --size 100 --json`으로 조회한다.
+- 사용자가 특정 서비스/알림 메일 삭제를 요청하면 사용자가 말한 키워드/문구를 그대로 `mail search --query <keyword> --size 100 --json`으로 조회한다.
 - 반환된 `messageList[].id`를 모아 `mail delete --id ... --json`으로 한 번에 삭제한다.
 - 삭제 후 같은 query를 다시 검색해 `항목 수: 0` 또는 total 0을 확인한다.
 - 확인 결과만 짧게 보고한다.
-- 확인된 정리 키워드 예시는 `ALARM`, `ECS 스케일`, `Sentry`, `Confluence`, `DX 일일 점검`, `Jira`, `Claude`다.
-- 자세한 세션별 키워드/패턴은 `references/mail-cleanup-keywords.md`를 참고한다.
+- 구체적인 서비스명/세션별 키워드는 스킬에 고정하지 않는다.
+- 사용자가 명시한 키워드만 대상으로 삼는다.
+- 검색 결과가 100건을 넘으면 CLI가 지원하는 pagination으로 추가 처리한다.
+- pagination 처리가 불명확하면 처리한 건수와 남은 건수를 짧게 보고한다.
 
 삭제 원칙:
 - 사용자가 완전삭제를 명확히 요청한 경우에만 영구 삭제를 수행한다.
@@ -211,12 +213,6 @@ saved session 재사용 규칙:
 - 재시도는 무한 반복하지 않는다.
 - 실패 원인은 짧게 보고한다.
 - 민감값은 출력하지 않는다.
-
-## 관련 reference
-
-필요할 때만 참고한다.
-- `references/server-notification-mail-cleanup.md`: ALARM / ECS 스케일 / Sentry 같은 서버 알림 메일 검색-삭제-검증 패턴
-- `references/mail-cleanup-keywords.md`: 반복 알림/서비스 메일 키워드와 삭제 검증 패턴
 
 ## 검증 체크리스트
 
