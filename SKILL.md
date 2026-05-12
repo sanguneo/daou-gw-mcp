@@ -1,7 +1,7 @@
 ---
 name: daou-gw
 description: Daou GW 작업은 daou-gw-cli 또는 daou-gw-mcp로만 빠르게 처리한다. 로그인, 세션, 근태, 메일, 캘린더, 전자결재 작업을 필요한 명령만 실행해 처리한다.
-version: 3.0.3
+version: 3.2.1
 author: Hermes Agent
 license: MIT
 metadata:
@@ -22,6 +22,8 @@ metadata:
 - 메일 목록 확인 / 검색 / 삭제
 - 캘린더 일정 조회
 - 전자결재 상태 확인
+- 게시판 글 생성/수정은 create/update만 제공하고, 본문의 `src="[{...}]"` placeholder를 자동 업로드(`/api/file`) 후 치환한다.
+- 영상 placeholder가 포함된 create 이후에는 `<video><source src>`를 첨부 API URL(`/api/board/{boardId}/post/{postId}/attaches/{attachId}`)로 후속 update 1회 치환한다.
 
 기본 원칙:
 - 먼저 `daou-gw-cli` 또는 `daou-gw-mcp`로 처리한다.
@@ -165,6 +167,23 @@ MCP:
 삭제 원칙:
 - 사용자가 완전삭제를 명확히 요청한 경우에만 영구 삭제를 수행한다.
 - 삭제 후에는 결과 count 또는 재검색으로 검증한다.
+
+## 게시판 처리
+
+CLI:
+- `board create --board-id <id> --subject <text> --content <html>`
+- `board update --board-id <id> --post-id <id> --subject <text> --content <html>`
+
+MCP:
+- `board_post_create`
+- `board_post_update`
+
+처리 원칙:
+- 게시판 명령 표면은 `create/update`만 사용한다.
+- 본문에 이미지/영상이 있으면 create/update 한 번으로 처리한다(별도 attach/add-video 명령 불필요).
+- 영상이 포함된 글도 최종적으로 재생 가능한 첨부 URL 기준으로 저장되도록 자동 처리된다.
+- 첨부 파일 경로는 WSL 경로를 우선 사용하고, Windows 경로(`C:\\...`)도 입력 가능하다.
+- 실패 시에는 세션 상태를 확인한 뒤 동일 명령 1회 재시도한다.
 
 ## 캘린더 처리
 

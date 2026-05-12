@@ -9,6 +9,10 @@ export interface Config {
   mail_list_url?: string;
   mail_search_url?: string;
   mail_delete_url?: string;
+  board_create_url?: string;
+  board_update_url?: string;
+  board_attach_url?: string;
+  board_image_upload_url?: string;
   saved_at?: string;
 }
 

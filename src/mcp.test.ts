@@ -31,6 +31,8 @@ describe('mcp tools', () => {
     expect(namesAfter).toContain('mail_search');
     expect(namesAfter).toContain('calendar_list');
     expect(namesAfter).toContain('approval_count');
+    expect(namesAfter).toContain('board_post_create');
+    expect(namesAfter).toContain('board_post_update');
   });
 
   it('marks required arguments and closes schemas', async () => {

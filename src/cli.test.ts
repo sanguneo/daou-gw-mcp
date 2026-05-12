@@ -13,11 +13,10 @@ describe('help rendering', () => {
     expect(help).toContain('attend      check/in/out attendance');
   });
 
-  it('shows attend usage when command help is requested', () => {
-    const help = renderCommandHelp('attend');
-    expect(help).toContain('usage: daou-gw-cli attend <status|in|out>');
-    expect(help).toContain('status [--json]');
-    expect(help).toContain('in     [--json]');
-    expect(help).toContain('out    [--json]');
+  it('shows board usage when command help is requested', () => {
+    const help = renderCommandHelp('board');
+    expect(help).toContain('usage: daou-gw-cli board <create|update>');
+    expect(help).toContain('create    --board-id <id> --subject <text> --content <html>');
+    expect(help).toContain('update    --board-id <id> --post-id <id> --subject <text> --content <html>');
   });
 });
