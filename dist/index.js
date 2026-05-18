@@ -4,6 +4,8 @@ import {
   approvalReference,
   approvalTodo,
   attendanceStatus,
+  boardPostCreate,
+  boardPostUpdate,
   clockInAttendance,
   clockOutAttendance,
   deleteMail,
@@ -24,8 +26,9 @@ import {
   saveConfig,
   saveSession,
   searchMail,
+  summarizeBoardResult,
   validateSession
-} from "./chunk-UFBOBCAX.js";
+} from "./chunk-UZ36X4RS.js";
 
 // src/cli.ts
 function renderRootHelp(showAttend = false) {
@@ -39,6 +42,7 @@ function renderRootHelp(showAttend = false) {
     showAttend ? "  attend      check/in/out attendance" : null,
     "  mail        list/search/delete mail",
     "  approval    list/count approval items",
+    "  board       create/update/attach board post",
     "  calendar    list calendar events",
     "  help        show help",
     ""
@@ -52,7 +56,7 @@ function renderCommandHelp(command) {
         "",
         "subcommands:",
         "  show",
-        "  set [--base-url <url>] [--username <id>] [--password <pw>] [--attend]",
+        "  set [--base-url <url>] [--username <id>] [--password <pw>] [--attend] [--board-create-url <path>] [--board-update-url <path>] [--board-attach-url <path>]",
         ""
       ].join("\n");
     case "login":
@@ -88,6 +92,15 @@ function renderCommandHelp(command) {
         "  todo      [--type all|wait|hold] [--page 1] [--size 20] [--searchtype <type>] [--keyword <text>] [--duration all|period] [--from-date YYYY-MM-DD] [--to-date YYYY-MM-DD] [--json]",
         "  reference [--kind reference|read|view] [--page 1] [--size 20] [--searchtype <type>] [--keyword <text>] [--duration all|period] [--from-date YYYY-MM-DD] [--to-date YYYY-MM-DD] [--json]",
         "  count     [--json]",
+        ""
+      ].join("\n");
+    case "board":
+      return [
+        "usage: daou-gw-cli board <create|update>",
+        "",
+        "subcommands:",
+        "  create    --board-id <id> --subject <text> --content <html> [--json]",
+        "  update    --board-id <id> --post-id <id> --subject <text> --content <html> [--json]",
         ""
       ].join("\n");
     default:
@@ -156,6 +169,8 @@ async function runCli(argv) {
       return runMail(args.slice(1));
     case "approval":
       return runApproval(args.slice(1));
+    case "board":
+      return runBoard(args.slice(1));
     case "calendar":
       return runCalendar(args.slice(1));
     default:
@@ -191,7 +206,10 @@ async function runConfig(args) {
     base_url: flagString(flags, "base-url", cfg.base_url),
     username: flagString(flags, "username", cfg.username),
     password: flagString(flags, "password", cfg.password),
-    attend: boolFlag(flags, "attend", cfg.attend ?? false)
+    attend: boolFlag(flags, "attend", cfg.attend ?? false),
+    board_create_url: flagString(flags, "board-create-url", cfg.board_create_url),
+    board_update_url: flagString(flags, "board-update-url", cfg.board_update_url),
+    board_attach_url: flagString(flags, "board-attach-url", cfg.board_attach_url)
   });
   await saveConfig(next);
   process.stdout.write("ok\n");
@@ -414,6 +432,43 @@ async function runApproval(args) {
     return 0;
   }
   process.stderr.write(renderCommandHelp("approval"));
+  return 1;
+}
+async function runBoard(args) {
+  if (args.length === 0 || args[0] === "help" || args[0] === "-h" || args[0] === "--help") {
+    process.stdout.write(renderCommandHelp("board"));
+    return 0;
+  }
+  const sub = args[0];
+  const { flags } = parseFlags(args.slice(1));
+  const { cfg, session } = await resolveSession();
+  const boardId = Number.parseInt(flagString(flags, "board-id", ""), 10);
+  const postId = Number.parseInt(flagString(flags, "post-id", ""), 10);
+  const subject = flagString(flags, "subject", "");
+  const content = flagString(flags, "content", "");
+  if (sub === "create") {
+    if (!Number.isInteger(boardId) || boardId <= 0 || !subject || !content) {
+      process.stderr.write(renderCommandHelp("board"));
+      return 1;
+    }
+    const raw = await boardPostCreate(cfg, session, boardId, subject, content);
+    if (hasFlag(flags, "json")) process.stdout.write(`${raw}
+`);
+    else process.stdout.write(summarizeBoardResult(raw, "create"));
+    return 0;
+  }
+  if (sub === "update") {
+    if (!Number.isInteger(boardId) || boardId <= 0 || !Number.isInteger(postId) || postId <= 0 || !subject || !content) {
+      process.stderr.write(renderCommandHelp("board"));
+      return 1;
+    }
+    const raw = await boardPostUpdate(cfg, session, boardId, postId, subject, content);
+    if (hasFlag(flags, "json")) process.stdout.write(`${raw}
+`);
+    else process.stdout.write(summarizeBoardResult(raw, "update"));
+    return 0;
+  }
+  process.stderr.write(renderCommandHelp("board"));
   return 1;
 }
 function normalizeIdFlags(args) {

@@ -18,15 +18,31 @@ Daou Office 그룹웨어(`gw.aegisep.com`)를 위한 CLI/MCP 도구입니다.
 
 ## 설치
 
+### 수동 설치
+
 ```bash
 npm install
 npm run build
 ```
 
-빌드 후 실행 파일은 `dist/`에 생성됩니다.
+### AI 에이전트 자동 설치
 
-- `daou-gw-cli`
-- `daou-gw-mcp`
+```bash
+bash scripts/install-agent.sh
+```
+
+Hermes, Claude Code, Codex CLI 등에 한 번에 설치합니다:
+
+- `daou-gw-cli` 전역 링크
+- Hermes skill (`~/.hermes/skills/productivity/daou-gw/SKILL.md`)
+- `AGENTS.md` (Codex CLI, Cline, Cursor 등 범용)
+- `CLAUDE.md` (Claude Code)
+
+### 설치 확인
+
+```bash
+daou-gw-cli session
+```
 
 ## 저장 위치
 

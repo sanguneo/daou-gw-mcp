@@ -4,6 +4,8 @@ import {
   approvalReference,
   approvalTodo,
   attendanceStatus,
+  boardPostCreate,
+  boardPostUpdate,
   clockInAttendance,
   clockOutAttendance,
   deleteMail,
@@ -25,7 +27,7 @@ import {
   saveSession,
   searchMail,
   validateSession
-} from "./chunk-UFBOBCAX.js";
+} from "./chunk-UZ36X4RS.js";
 
 // src/mcp.ts
 import * as readline from "readline";
@@ -74,7 +76,7 @@ function normalizeToolName(name) {
 }
 var TOOL_ALLOWED_KEYS = {
   config_show: [],
-  config_set: ["base_url", "username", "password", "attend", "mail_list_url", "mail_search_url", "mail_delete_url"],
+  config_set: ["base_url", "username", "password", "attend", "mail_list_url", "mail_search_url", "mail_delete_url", "board_create_url", "board_update_url", "board_attach_url"],
   login: ["username", "password", "base_url"],
   session: [],
   attend_status: [],
@@ -86,7 +88,9 @@ var TOOL_ALLOWED_KEYS = {
   calendar_list: ["calendar_id", "from_date", "to_date"],
   approval_todo: ["type", "page", "size", "searchtype", "keyword", "duration", "from_date", "to_date"],
   approval_reference: ["kind", "page", "size", "searchtype", "keyword", "duration", "from_date", "to_date"],
-  approval_count: []
+  approval_count: [],
+  board_post_create: ["board_id", "subject", "content"],
+  board_post_update: ["board_id", "post_id", "subject", "content"]
 };
 function isPlainObject(v) {
   if (typeof v !== "object" || v === null || Array.isArray(v)) return false;
@@ -129,7 +133,7 @@ function coreTools() {
     tool(
       "config_set",
       "Update local daou-gw config in ~/.daou/config.json",
-      { base_url: { type: "string" }, username: { type: "string" }, password: { type: "string" }, attend: { type: "boolean" }, mail_list_url: { type: "string" }, mail_search_url: { type: "string" }, mail_delete_url: { type: "string" } }
+      { base_url: { type: "string" }, username: { type: "string" }, password: { type: "string" }, attend: { type: "boolean" }, mail_list_url: { type: "string" }, mail_search_url: { type: "string" }, mail_delete_url: { type: "string" }, board_create_url: { type: "string" }, board_update_url: { type: "string" }, board_attach_url: { type: "string" } }
     ),
     tool(
       "login",
@@ -172,7 +176,19 @@ function coreTools() {
       "List approval reference/read/view items over HTTP using saved session",
       { kind: { type: "string" }, page: { type: "integer" }, size: { type: "integer" }, searchtype: { type: "string" }, keyword: { type: "string" }, duration: { type: "string" }, from_date: { type: "string" }, to_date: { type: "string" } }
     ),
-    tool("approval_count", "Get approval todo count over HTTP using saved session")
+    tool("approval_count", "Get approval todo count over HTTP using saved session"),
+    tool(
+      "board_post_create",
+      "Create board post over HTTP",
+      { board_id: { type: "integer" }, subject: { type: "string", minLength: 1 }, content: { type: "string", minLength: 1 } },
+      ["board_id", "subject", "content"]
+    ),
+    tool(
+      "board_post_update",
+      "Update board post over HTTP",
+      { board_id: { type: "integer" }, post_id: { type: "integer" }, subject: { type: "string", minLength: 1 }, content: { type: "string", minLength: 1 } },
+      ["board_id", "post_id", "subject", "content"]
+    )
   ];
 }
 function attendTools() {
@@ -201,7 +217,10 @@ async function callTool(name, args = {}) {
       attend: typeof args.attend === "boolean" ? args.attend : stored.attend,
       mail_list_url: str(args.mail_list_url) || stored.mail_list_url,
       mail_search_url: str(args.mail_search_url) || stored.mail_search_url,
-      mail_delete_url: str(args.mail_delete_url) || stored.mail_delete_url
+      mail_delete_url: str(args.mail_delete_url) || stored.mail_delete_url,
+      board_create_url: str(args.board_create_url) || stored.board_create_url,
+      board_update_url: str(args.board_update_url) || stored.board_update_url,
+      board_attach_url: str(args.board_attach_url) || stored.board_attach_url
     });
     await saveConfig(next);
     return { text: formatConfig(next), isError: false };
@@ -329,6 +348,25 @@ async function callTool(name, args = {}) {
     const baseUrl = resolveBaseUrl(cfg, sess);
     const raw = await approvalCount({ ...cfg, base_url: baseUrl }, sess);
     return { text: formatApprovalOutput(raw, "count"), isError: false };
+  }
+  if (toolName === "board_post_create") {
+    const boardId = optionalPositiveIntArg(args.board_id, -1);
+    const subject = textArg(args.subject);
+    const content = textArg(args.content);
+    if (boardId === null || boardId < 1 || subject === null || content === null) return { text: "invalid board_post_create args", isError: true };
+    const { cfg, session: sess } = await resolveSession();
+    const raw = await boardPostCreate(cfg, sess, boardId, subject, content);
+    return { text: raw, isError: false };
+  }
+  if (toolName === "board_post_update") {
+    const boardId = optionalPositiveIntArg(args.board_id, -1);
+    const postId = optionalPositiveIntArg(args.post_id, -1);
+    const subject = textArg(args.subject);
+    const content = textArg(args.content);
+    if (boardId === null || boardId < 1 || postId === null || postId < 1 || subject === null || content === null) return { text: "invalid board_post_update args", isError: true };
+    const { cfg, session: sess } = await resolveSession();
+    const raw = await boardPostUpdate(cfg, sess, boardId, postId, subject, content);
+    return { text: raw, isError: false };
   }
   return { text: "unknown tool", isError: true };
 }
