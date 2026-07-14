@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import {
   approvalCount,
+  approvalLeaveCount,
   approvalReference,
   approvalTodo,
   attendanceStatus,
@@ -13,6 +14,7 @@ import {
   formatAttendanceStatus,
   formatCalendarOutput,
   formatConfig,
+  formatLeaveCountOutput,
   formatMailOutput,
   formatSession,
   listCalendarEvents,
@@ -27,7 +29,7 @@ import {
   saveSession,
   searchMail,
   validateSession
-} from "./chunk-UZ36X4RS.js";
+} from "./chunk-O5ES5E47.js";
 
 // src/mcp.ts
 import * as readline from "readline";
@@ -89,6 +91,7 @@ var TOOL_ALLOWED_KEYS = {
   approval_todo: ["type", "page", "size", "searchtype", "keyword", "duration", "from_date", "to_date"],
   approval_reference: ["kind", "page", "size", "searchtype", "keyword", "duration", "from_date", "to_date"],
   approval_count: [],
+  leave_count: [],
   board_post_create: ["board_id", "subject", "content"],
   board_post_update: ["board_id", "post_id", "subject", "content"]
 };
@@ -177,6 +180,7 @@ function coreTools() {
       { kind: { type: "string" }, page: { type: "integer" }, size: { type: "integer" }, searchtype: { type: "string" }, keyword: { type: "string" }, duration: { type: "string" }, from_date: { type: "string" }, to_date: { type: "string" } }
     ),
     tool("approval_count", "Get approval todo count over HTTP using saved session"),
+    tool("leave_count", "Show annual leave usage, balance, extra, and total points"),
     tool(
       "board_post_create",
       "Create board post over HTTP",
@@ -348,6 +352,12 @@ async function callTool(name, args = {}) {
     const baseUrl = resolveBaseUrl(cfg, sess);
     const raw = await approvalCount({ ...cfg, base_url: baseUrl }, sess);
     return { text: formatApprovalOutput(raw, "count"), isError: false };
+  }
+  if (toolName === "leave_count") {
+    const { cfg, session: sess } = await resolveSession();
+    const baseUrl = resolveBaseUrl(cfg, sess);
+    const raw = await approvalLeaveCount({ ...cfg, base_url: baseUrl }, sess, 4621, 159);
+    return { text: formatLeaveCountOutput(raw), isError: false };
   }
   if (toolName === "board_post_create") {
     const boardId = optionalPositiveIntArg(args.board_id, -1);

@@ -17,6 +17,7 @@ This tool is installed globally as `daou-gw-cli`. All commands support `--json` 
 | Mail inbox | `daou-gw-cli mail list --size 5` |
 | Mail search | `daou-gw-cli mail search --query <keyword> --size 20` |
 | Mail delete | `daou-gw-cli mail delete --id <id> [--id <id> ...]` |
+| Mail send | `daou-gw-cli mail send --to <email> --subject <text> --content '<p>...</p>'` |
 | Approval todo | `daou-gw-cli approval todo --size 10` |
 | Approval ref | `daou-gw-cli approval reference --size 10` |
 | Approval count | `daou-gw-cli approval count` |

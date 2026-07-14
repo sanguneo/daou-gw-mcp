@@ -13,6 +13,12 @@ describe('help rendering', () => {
     expect(help).toContain('attend      check/in/out attendance');
   });
 
+  it('shows mail send usage when mail help is requested', () => {
+    const help = renderCommandHelp('mail');
+    expect(help).toContain('usage: daou-gw-cli mail <list|search|delete|send>');
+    expect(help).toContain('send   --to <email[,email...]> --subject <text>');
+  });
+
   it('shows board usage when command help is requested', () => {
     const help = renderCommandHelp('board');
     expect(help).toContain('usage: daou-gw-cli board <create|update>');

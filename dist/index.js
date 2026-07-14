@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import {
   approvalCount,
+  approvalLeaveCount,
   approvalReference,
   approvalTodo,
   attendanceStatus,
@@ -13,6 +14,7 @@ import {
   formatAttendanceStatus,
   formatCalendarOutput,
   formatConfig,
+  formatLeaveCountOutput,
   formatMailOutput,
   listCalendarEvents,
   listMail,
@@ -26,11 +28,13 @@ import {
   saveConfig,
   saveSession,
   searchMail,
+  sendMail,
   summarizeBoardResult,
   validateSession
-} from "./chunk-UZ36X4RS.js";
+} from "./chunk-O5ES5E47.js";
 
 // src/cli.ts
+import { readFile } from "fs/promises";
 function renderRootHelp(showAttend = false) {
   return [
     "usage: daou-gw-cli <command>",
@@ -40,8 +44,9 @@ function renderRootHelp(showAttend = false) {
     "  login       login and save session",
     "  session     check saved session",
     showAttend ? "  attend      check/in/out attendance" : null,
-    "  mail        list/search/delete mail",
+    "  mail        list/search/delete/send mail",
     "  approval    list/count approval items",
+    "  leavecount  show annual leave usage/balance",
     "  board       create/update/attach board post",
     "  calendar    list calendar events",
     "  help        show help",
@@ -56,7 +61,7 @@ function renderCommandHelp(command) {
         "",
         "subcommands:",
         "  show",
-        "  set [--base-url <url>] [--username <id>] [--password <pw>] [--attend] [--board-create-url <path>] [--board-update-url <path>] [--board-attach-url <path>]",
+        "  set [--base-url <url>] [--username <id>] [--password <pw>] [--attend] [--mail-send-url <path>] [--mail-image-upload-url <path>] [--mail-sender-email <email>] [--mail-sender-name <name>] [--board-create-url <path>] [--board-update-url <path>] [--board-attach-url <path>]",
         ""
       ].join("\n");
     case "login":
@@ -76,12 +81,13 @@ function renderCommandHelp(command) {
       ].join("\n");
     case "mail":
       return [
-        "usage: daou-gw-cli mail <list|search|delete>",
+        "usage: daou-gw-cli mail <list|search|delete|send>",
         "",
         "subcommands:",
         "  list   [--folder Inbox] [--page 1] [--size 20] [--json]",
         "  search --query <text> [--folder Inbox] [--page 1] [--size 20] [--json]",
         "  delete --id <mail-id> [--id <mail-id> ...] [--folder Inbox] [--json]",
+        "  send   --to <email[,email...]> --subject <text> (--content <html>|--html-file <path>|--image <path>) [--cc <email>] [--bcc <email>] [--from-email <email>] [--from-name <name>] [--reserved-at <iso>] [--json]",
         ""
       ].join("\n");
     case "approval":
@@ -169,6 +175,8 @@ async function runCli(argv) {
       return runMail(args.slice(1));
     case "approval":
       return runApproval(args.slice(1));
+    case "leavecount":
+      return runLeaveCount(args.slice(1));
     case "board":
       return runBoard(args.slice(1));
     case "calendar":
@@ -207,6 +215,10 @@ async function runConfig(args) {
     username: flagString(flags, "username", cfg.username),
     password: flagString(flags, "password", cfg.password),
     attend: boolFlag(flags, "attend", cfg.attend ?? false),
+    mail_send_url: flagString(flags, "mail-send-url", cfg.mail_send_url),
+    mail_image_upload_url: flagString(flags, "mail-image-upload-url", cfg.mail_image_upload_url),
+    mail_sender_email: flagString(flags, "mail-sender-email", cfg.mail_sender_email),
+    mail_sender_name: flagString(flags, "mail-sender-name", cfg.mail_sender_name),
     board_create_url: flagString(flags, "board-create-url", cfg.board_create_url),
     board_update_url: flagString(flags, "board-update-url", cfg.board_update_url),
     board_attach_url: flagString(flags, "board-attach-url", cfg.board_attach_url)
@@ -355,6 +367,34 @@ async function runMail(args) {
     else process.stdout.write(formatMailOutput(raw, "delete"));
     return 0;
   }
+  if (sub === "send") {
+    const to = flagString(flags, "to", "");
+    const subject = flagString(flags, "subject", "");
+    const imagePath = flagString(flags, "image", "");
+    const content = await resolveMailContent(flags);
+    if (!to || !subject || !content.trim() && !imagePath.trim()) {
+      process.stderr.write(renderCommandHelp("mail"));
+      return 1;
+    }
+    const raw = await sendMail(resolvedCfg, session, {
+      to,
+      subject,
+      content,
+      cc: flagString(flags, "cc", ""),
+      bcc: flagString(flags, "bcc", ""),
+      senderEmail: flagString(flags, "from-email", ""),
+      senderName: flagString(flags, "from-name", ""),
+      imagePath,
+      reserveMail: hasFlag(flags, "reserved") || hasFlag(flags, "reserve"),
+      reservedDateUtc: flagString(flags, "reserved-at", ""),
+      receiveNoti: boolFlag(flags, "receive-noti", true),
+      saveSent: boolFlag(flags, "save-sent", true)
+    });
+    if (hasFlag(flags, "json")) process.stdout.write(`${raw}
+`);
+    else process.stdout.write(formatMailOutput(raw, "send"));
+    return 0;
+  }
   process.stderr.write(renderCommandHelp("mail"));
   return 1;
 }
@@ -434,6 +474,27 @@ async function runApproval(args) {
   process.stderr.write(renderCommandHelp("approval"));
   return 1;
 }
+async function runLeaveCount(args) {
+  const { flags } = parseFlags(args);
+  const formId = Number.parseInt(flagString(flags, "form-id", "4621"), 10) || 4621;
+  const deptId = 159;
+  const { cfg, session } = await resolveSession();
+  const baseUrl = resolveBaseUrl(cfg, session);
+  const raw = await approvalLeaveCount({ ...cfg, base_url: baseUrl }, session, formId, deptId);
+  if (hasFlag(flags, "json")) {
+    const parsed = JSON.parse(raw);
+    const variables = parsed?.data?.document?.variables ?? parsed?.document?.variables ?? parsed?.variables ?? {};
+    const out = {
+      usedPoint: variables.usedPoint,
+      restPoint: variables.restPoint,
+      additionPoint: variables.additionPoint,
+      totalPoint: variables.totalPoint
+    };
+    process.stdout.write(`${JSON.stringify(out)}
+`);
+  } else process.stdout.write(formatLeaveCountOutput(raw));
+  return 0;
+}
 async function runBoard(args) {
   if (args.length === 0 || args[0] === "help" || args[0] === "-h" || args[0] === "--help") {
     process.stdout.write(renderCommandHelp("board"));
@@ -470,6 +531,13 @@ async function runBoard(args) {
   }
   process.stderr.write(renderCommandHelp("board"));
   return 1;
+}
+async function resolveMailContent(flags) {
+  const inline = flagString(flags, "content", "");
+  if (inline) return inline;
+  const htmlFile = flagString(flags, "html-file", "");
+  if (!htmlFile) return "";
+  return readFile(htmlFile, "utf8");
 }
 function normalizeIdFlags(args) {
   const ids = [];

@@ -35,11 +35,15 @@ function formatConfig(cfg) {
   if (cfg.attend) {
     lines.push(`- Attend: \uD65C\uC131\uD654`);
   }
-  if (cfg.mail_list_url || cfg.mail_search_url || cfg.mail_delete_url) {
+  if (cfg.mail_list_url || cfg.mail_search_url || cfg.mail_delete_url || cfg.mail_send_url || cfg.mail_image_upload_url || cfg.mail_sender_email || cfg.mail_sender_name) {
     lines.push(
       `- Mail List URL: ${dash(cfg.mail_list_url)}`,
       `- Mail Search URL: ${dash(cfg.mail_search_url)}`,
-      `- Mail Delete URL: ${dash(cfg.mail_delete_url)}`
+      `- Mail Delete URL: ${dash(cfg.mail_delete_url)}`,
+      `- Mail Send URL: ${dash(cfg.mail_send_url)}`,
+      `- Mail Image Upload URL: ${dash(cfg.mail_image_upload_url)}`,
+      `- Mail Sender Email: ${dash(cfg.mail_sender_email)}`,
+      `- Mail Sender Name: ${dash(cfg.mail_sender_name)}`
     );
   }
   if (cfg.saved_at) {
@@ -189,11 +193,11 @@ function formatMailOutput(raw, action, displayLimit) {
 - \uC751\uB2F5: ${raw.trim()}
 `;
   }
-  if (action === "delete") {
+  if (action === "delete" || action === "send") {
     const ok = typeof parsed.ok === "boolean" ? parsed.ok : true;
     const endpoint = typeof parsed.endpoint === "string" ? parsed.endpoint : "-";
     const status = typeof parsed.status === "number" ? parsed.status : "-";
-    return [`\uBA54\uC77C \uC0AD\uC81C`, `- \uACB0\uACFC: ${ok ? "\uC131\uACF5" : "\uC2E4\uD328"}`, `- \uC0C1\uD0DC: ${status}`, `- endpoint: ${endpoint}`, ""].join("\n");
+    return [`\uBA54\uC77C ${action === "delete" ? "\uC0AD\uC81C" : "\uBC1C\uC1A1"}`, `- \uACB0\uACFC: ${ok ? "\uC131\uACF5" : "\uC2E4\uD328"}`, `- \uC0C1\uD0DC: ${status}`, `- endpoint: ${endpoint}`, ""].join("\n");
   }
   const items = extractArray(parsed);
   const total = items.length;
@@ -239,6 +243,29 @@ function formatApprovalOutput(raw, action) {
   }
   const total = countItems(parsed);
   return [`\uACB0\uC7AC ${action === "todo" ? "\uD560\uC77C" : "\uCC38\uC870"}`, `- \uD56D\uBAA9 \uC218: ${total}`, ""].join("\n");
+}
+function getJsonVariables(raw) {
+  const parsed = tryParseJSON(raw);
+  const variables = parsed?.data?.document?.variables ?? parsed?.document?.variables ?? parsed?.variables;
+  return isRecord(variables) ? variables : null;
+}
+function formatLeaveCountOutput(raw) {
+  const variables = getJsonVariables(raw);
+  if (!variables) return `\uC5F0\uCC28 \uC815\uBCF4
+- \uC751\uB2F5: ${raw.trim()}
+`;
+  const mapping = [
+    ["usedPoint", "\uC0AC\uC6A9\uC5F0\uCC28"],
+    ["restPoint", "\uC794\uC5EC\uC5F0\uCC28"],
+    ["additionPoint", "\uCD94\uAC00\uC5F0\uCC28"],
+    ["totalPoint", "\uCD1D\uC5F0\uCC28"]
+  ];
+  const lines = ["\uC5F0\uCC28 \uC815\uBCF4"];
+  for (const [key, label] of mapping) {
+    if (key in variables) lines.push(`- ${label}: ${String(variables[key])}`);
+  }
+  lines.push("");
+  return lines.join("\n");
 }
 
 // src/lib/http.ts
@@ -787,6 +814,8 @@ function renderAttendanceActionResult(result) {
 }
 
 // src/lib/mail.ts
+import { basename } from "path";
+import { readFile } from "fs/promises";
 function resolveMailEndpoint(baseURL, configured, envKey, defaultCandidate, candidates) {
   const direct = configured.trim();
   if (direct) return direct;
@@ -837,19 +866,27 @@ function candidateURLs(baseURL, endpoint, candidates) {
 function mailConfiguredURL(cfg, action) {
   if (action === "list") return cfg.mail_list_url ?? "";
   if (action === "search") return cfg.mail_search_url ?? "";
-  return cfg.mail_delete_url ?? "";
+  if (action === "delete") return cfg.mail_delete_url ?? "";
+  if (action === "send") return cfg.mail_send_url ?? "";
+  return cfg.mail_image_upload_url ?? "";
 }
 function mailEnvKey(action) {
   if (action === "list") return "DAOU_MAIL_LIST_URL";
   if (action === "search") return "DAOU_MAIL_SEARCH_URL";
-  return "DAOU_MAIL_DELETE_URL";
+  if (action === "delete") return "DAOU_MAIL_DELETE_URL";
+  if (action === "send") return "DAOU_MAIL_SEND_URL";
+  return "DAOU_MAIL_IMAGE_UPLOAD_URL";
 }
 function mailDefaultCandidate(action) {
   if (action === "delete") return "/api/mail/message/delete";
+  if (action === "send") return "/api/mail/message/send";
+  if (action === "imageUpload") return "/api/mail/image/upload";
   return "/api/mail/message/list";
 }
 function mailFallbackCandidates(action) {
   if (action === "delete") return ["/api/mail/message/delete", "/api/mail/delete", "/api/mail/message/clean", "/api/mail/message/all"];
+  if (action === "send") return ["/api/mail/message/send"];
+  if (action === "imageUpload") return ["/api/mail/image/upload"];
   return ["/api/mail/message/list", "/api/mail/list", "/api/mail/message/all", "/api/mail/inbox", "/api/mail/messages"];
 }
 async function callMailAction(cfg, session, action, method, query, body) {
@@ -883,6 +920,114 @@ async function callMailAction(cfg, session, action, method, query, body) {
     return trimmed;
   }
   throw lastErr ?? new Error(`${action} request failed`);
+}
+function envFallback(key) {
+  return (process.env[key] ?? "").trim();
+}
+function normalizeReservedDate(value) {
+  const raw = value?.trim() ?? "";
+  if (!raw) return "";
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return raw;
+  return `${d.toISOString().split(".")[0]}+00:00`;
+}
+function senderEmailFrom(cfg, session, explicit) {
+  const candidates = [
+    explicit,
+    cfg.mail_sender_email,
+    envFallback("DAOU_MAIL_SENDER_EMAIL"),
+    cfg.username?.includes("@") ? cfg.username : "",
+    session.username?.includes("@") ? session.username : ""
+  ];
+  return candidates.map((v) => v?.trim() ?? "").find(Boolean) ?? "";
+}
+function senderNameFrom(cfg, explicit) {
+  const candidates = [explicit, cfg.mail_sender_name, envFallback("DAOU_MAIL_SENDER_NAME"), cfg.username];
+  return candidates.map((v) => v?.trim() ?? "").find(Boolean) ?? "";
+}
+function extractUploadedImageTag(raw) {
+  const parsed = JSON.parse(raw);
+  const data = parsed.data && typeof parsed.data === "object" ? parsed.data : parsed;
+  const fileURL = typeof data.fileURL === "string" ? data.fileURL : typeof data.url === "string" ? data.url : typeof data.fileUrl === "string" ? data.fileUrl : "";
+  const fileName = typeof data.fileName === "string" ? data.fileName : typeof data.name === "string" ? data.name : "";
+  if (!fileURL) throw new Error("mail image upload response missing fileURL");
+  const safeTitle = fileName.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return `<img src="${fileURL}" title="${safeTitle}">`;
+}
+async function uploadMailImage(cfg, session, imagePath) {
+  const baseUrl = cfg.base_url?.trim() ?? "";
+  if (!baseUrl) throw new Error("base url required");
+  const endpoint = resolveMailEndpoint(baseUrl, mailConfiguredURL(cfg, "imageUpload"), mailEnvKey("imageUpload"), mailDefaultCandidate("imageUpload"), mailFallbackCandidates("imageUpload"));
+  const urls = candidateURLs(baseUrl, endpoint, mailFallbackCandidates("imageUpload"));
+  const file = await readFile(imagePath);
+  let lastErr = null;
+  for (const target of urls) {
+    const form = new FormData();
+    form.set("uploadType", "flash");
+    form.set("NewFile", new Blob([file]), basename(imagePath));
+    const { status, text } = await requestText(target, { method: "POST", body: form }, session);
+    if (status >= 400) {
+      lastErr = new Error(`image upload http ${status}: ${text.trim()}`);
+      continue;
+    }
+    const trimmed = text.trim();
+    if (!trimmed || trimmed.startsWith("<")) {
+      lastErr = new Error(`image upload returned invalid response from ${target}`);
+      continue;
+    }
+    return trimmed;
+  }
+  throw lastErr ?? new Error("image upload request failed");
+}
+async function sendMail(cfg, session, options) {
+  const to = options.to.trim();
+  const subject = options.subject.trim();
+  if (!to) throw new Error("to required");
+  if (!subject) throw new Error("subject required");
+  let content = options.content;
+  if (options.imagePath?.trim()) {
+    const imageUploadRaw = await uploadMailImage(cfg, session, options.imagePath.trim());
+    content = `${content}${content.trim() ? "<br>" : ""}${extractUploadedImageTag(imageUploadRaw)}`;
+  }
+  if (!content.trim()) throw new Error("content or image required");
+  const senderEmail = senderEmailFrom(cfg, session, options.senderEmail);
+  if (!senderEmail) throw new Error("sender email required; pass --from-email or set DAOU_MAIL_SENDER_EMAIL");
+  const senderName = senderNameFrom(cfg, options.senderName);
+  const reservedDateUtc = normalizeReservedDate(options.reservedDateUtc);
+  const reserveMail = options.reserveMail === true || !!reservedDateUtc;
+  const payload = {
+    senderEmail,
+    senderName,
+    sendType: reserveMail ? "reserved" : "normal",
+    sendFlag: "normal",
+    charset: "UTF-8",
+    attachsign: false,
+    signSeq: "",
+    signLocation: "outside",
+    bannerDisplay: false,
+    to,
+    cc: options.cc?.trim() ?? "",
+    bcc: options.bcc?.trim() ?? "",
+    massMode: false,
+    attachSign: false,
+    senderMode: false,
+    useAliasEmail: false,
+    subject,
+    writeMode: "html",
+    content,
+    receiveNoti: options.receiveNoti ?? true,
+    reserveMail,
+    reservedDateUtc,
+    saveSent: options.saveSent ?? true,
+    attachList: "",
+    bigAttachContent: "",
+    bigAttachMode: false,
+    bigAttachLinks: null,
+    sharedFlag: "user",
+    sharedUserSeq: "0",
+    sharedFolderName: ""
+  };
+  return callMailAction(cfg, session, "send", "POST", null, payload);
 }
 async function listMail(cfg, session, folder, page, size) {
   const normalizedFolder = normalizeMailFolder(folder);
@@ -986,6 +1131,11 @@ async function approvalReference(cfg, session, kind, page, size, searchType, key
 }
 async function approvalCount(cfg, session) {
   return doApprovalGet(cfg, session, "/api/approval/todo/count");
+}
+async function approvalLeaveCount(cfg, session, formId, deptId) {
+  if (!Number.isInteger(formId) || formId <= 0) throw new Error("invalid formId");
+  if (!Number.isInteger(deptId) || deptId <= 0) throw new Error("invalid deptId");
+  return doApprovalGet(cfg, session, `/api/approval/document/new?formId=${formId}&deptId=${deptId}`);
 }
 
 // src/lib/board.ts
@@ -1236,6 +1386,7 @@ export {
   formatMailOutput,
   formatCalendarOutput,
   formatApprovalOutput,
+  formatLeaveCountOutput,
   listCalendarEvents,
   loadConfig,
   saveConfig,
@@ -1250,14 +1401,16 @@ export {
   clockInAttendance,
   clockOutAttendance,
   renderAttendanceActionResult,
+  sendMail,
   listMail,
   searchMail,
   deleteMail,
   approvalTodo,
   approvalReference,
   approvalCount,
+  approvalLeaveCount,
   boardPostCreate,
   boardPostUpdate,
   summarizeBoardResult
 };
-//# sourceMappingURL=chunk-UZ36X4RS.js.map
+//# sourceMappingURL=chunk-O5ES5E47.js.map

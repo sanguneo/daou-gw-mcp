@@ -78,4 +78,59 @@ describe('cli integration', () => {
       await server.close();
     }
   });
+
+  it('sends mail with the message send API', async () => {
+    const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'daou-gw-'));
+    process.env.HOME = tmp;
+    let sendPayload: any = null;
+
+    const server = await withServer((req: IncomingMessage, res: ServerResponse) => {
+      const url = new URL(req.url ?? '/', 'http://127.0.0.1');
+      if (url.pathname === '/api/login' && req.method === 'POST') {
+        res.statusCode = 200;
+        res.setHeader('Set-Cookie', 'sid=abc; Path=/; HttpOnly');
+        res.setHeader('Content-Type', 'application/json');
+        res.end('{}');
+        return;
+      }
+      if (url.pathname === '/api/user/session' && req.method === 'GET') {
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ data: { id: 7, name: 'tester' } }));
+        return;
+      }
+      if (url.pathname === '/api/mail/message/send' && req.method === 'POST') {
+        let raw = '';
+        req.setEncoding('utf8');
+        req.on('data', (chunk: string) => { raw += chunk; });
+        req.on('end', () => {
+          sendPayload = JSON.parse(raw);
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ code: 200, ok: true }));
+        });
+        return;
+      }
+      res.statusCode = 404;
+      res.end('not found');
+    });
+
+    try {
+      await runCli(['config', 'set', '--base-url', server.baseUrl, '--mail-sender-email', 'sender@example.com', '--mail-sender-name', 'Tester']);
+      await runCli(['login', '--username', 'tester', '--password', 'pw']);
+      const code = await runCli(['mail', 'send', '--to', 'receiver@example.com', '--subject', 'Hello', '--content', '<p>body</p>', '--json']);
+      expect(code).toBe(0);
+      expect(sendPayload).toMatchObject({
+        senderEmail: 'sender@example.com',
+        senderName: 'Tester',
+        to: 'receiver@example.com',
+        subject: 'Hello',
+        writeMode: 'html',
+        content: '<p>body</p>',
+        sendType: 'normal',
+        reserveMail: false,
+        saveSent: true,
+      });
+    } finally {
+      await server.close();
+    }
+  });
 });

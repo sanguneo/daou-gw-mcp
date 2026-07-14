@@ -40,11 +40,15 @@ export function formatConfig(cfg: Config): string {
   if (cfg.attend) {
     lines.push(`- Attend: 활성화`);
   }
-  if (cfg.mail_list_url || cfg.mail_search_url || cfg.mail_delete_url) {
+  if (cfg.mail_list_url || cfg.mail_search_url || cfg.mail_delete_url || cfg.mail_send_url || cfg.mail_image_upload_url || cfg.mail_sender_email || cfg.mail_sender_name) {
     lines.push(
       `- Mail List URL: ${dash(cfg.mail_list_url)}`,
       `- Mail Search URL: ${dash(cfg.mail_search_url)}`,
       `- Mail Delete URL: ${dash(cfg.mail_delete_url)}`,
+      `- Mail Send URL: ${dash(cfg.mail_send_url)}`,
+      `- Mail Image Upload URL: ${dash(cfg.mail_image_upload_url)}`,
+      `- Mail Sender Email: ${dash(cfg.mail_sender_email)}`,
+      `- Mail Sender Name: ${dash(cfg.mail_sender_name)}`,
     );
   }
   if (cfg.saved_at) {
@@ -235,16 +239,16 @@ export function prettyJSON(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`;
 }
 
-export function formatMailOutput(raw: string, action: 'list' | 'search' | 'delete', displayLimit?: number): string {
+export function formatMailOutput(raw: string, action: 'list' | 'search' | 'delete' | 'send', displayLimit?: number): string {
   const parsed = tryParseJSON(raw);
   if (!parsed) {
     return `메일 ${action}\n- 응답: ${raw.trim()}\n`;
   }
-  if (action === 'delete') {
+  if (action === 'delete' || action === 'send') {
     const ok = typeof parsed.ok === 'boolean' ? parsed.ok : true;
     const endpoint = typeof parsed.endpoint === 'string' ? parsed.endpoint : '-';
     const status = typeof parsed.status === 'number' ? parsed.status : '-';
-    return [`메일 삭제`, `- 결과: ${ok ? '성공' : '실패'}`, `- 상태: ${status}`, `- endpoint: ${endpoint}`, ''].join('\n');
+    return [`메일 ${action === 'delete' ? '삭제' : '발송'}`, `- 결과: ${ok ? '성공' : '실패'}`, `- 상태: ${status}`, `- endpoint: ${endpoint}`, ''].join('\n');
   }
   const items = extractArray(parsed);
   const total = items.length;
@@ -286,4 +290,27 @@ export function formatApprovalOutput(raw: string, action: 'todo' | 'reference' |
   }
   const total = countItems(parsed);
   return [`결재 ${action === 'todo' ? '할일' : '참조'}`, `- 항목 수: ${total}`, ''].join('\n');
+}
+
+function getJsonVariables(raw: string): Record<string, unknown> | null {
+  const parsed = tryParseJSON(raw);
+  const variables = parsed?.data?.document?.variables ?? parsed?.document?.variables ?? parsed?.variables;
+  return isRecord(variables) ? variables : null;
+}
+
+export function formatLeaveCountOutput(raw: string): string {
+  const variables = getJsonVariables(raw);
+  if (!variables) return `연차 정보\n- 응답: ${raw.trim()}\n`;
+  const mapping: Array<[string, string]> = [
+    ['usedPoint', '사용연차'],
+    ['restPoint', '잔여연차'],
+    ['additionPoint', '추가연차'],
+    ['totalPoint', '총연차'],
+  ];
+  const lines = ['연차 정보'];
+  for (const [key, label] of mapping) {
+    if (key in variables) lines.push(`- ${label}: ${String(variables[key])}`);
+  }
+  lines.push('');
+  return lines.join('\n');
 }

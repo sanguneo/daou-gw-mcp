@@ -5,7 +5,7 @@ Daou Office 그룹웨어(`gw.aegisep.com`)를 위한 CLI/MCP 도구입니다.
 이 프로젝트는 비공식 도구입니다. Daou의 공식 배포물이나 공식 지원 제품이 아닙니다.
 
 - 로그인 세션 저장/검증
-- 메일 목록/검색/삭제
+- 메일 목록/검색/삭제/발송
 - 전자결재(todo/reference/count)
 - 캘린더 일정 조회
 - MCP 서버 제공
@@ -116,6 +116,7 @@ daou-gw-cli session [--json]
 daou-gw-cli mail list [--folder Inbox] [--page 1] [--size 20] [--json]
 daou-gw-cli mail search --query <text> [--folder Inbox] [--page 1] [--size 20] [--json]
 daou-gw-cli mail delete --id <mail-id> [--id <mail-id> ...] [--folder Inbox] [--json]
+daou-gw-cli mail send --to <email[,email...]> --subject <text> (--content <html>|--html-file <path>|--image <path>) [--cc <email>] [--bcc <email>] [--from-email <email>] [--from-name <name>] [--reserved-at <iso>] [--json]
 ```
 
 기본 동작:
@@ -124,6 +125,9 @@ daou-gw-cli mail delete --id <mail-id> [--id <mail-id> ...] [--folder Inbox] [--
 - `--size`는 표시 개수에도 반영됩니다.
 - `search`는 `--query`가 필수입니다.
 - `delete`는 `--id`를 하나 이상 넣어야 합니다.
+- `send`는 `--to`, `--subject`, 본문(`--content`/`--html-file`) 또는 이미지(`--image`)가 필요합니다.
+- 발신자 메일은 `--from-email`, 설정값 `mail_sender_email`, 환경변수 `DAOU_MAIL_SENDER_EMAIL`, `username` 순서로 사용합니다.
+- `--image`는 `/api/mail/image/upload`에 먼저 업로드한 뒤 HTML 본문에 `<img>`로 삽입합니다.
 
 ### approval
 
