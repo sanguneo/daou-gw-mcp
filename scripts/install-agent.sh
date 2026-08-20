@@ -67,7 +67,26 @@ if [ -f "$REPO_DIR/dist/mcp.js" ] && [ -d "${HOME}/.hermes" ] && [ "${1:-}" != "
   fi
 fi
 
-# ── 5. Generic agents (AGENTS.md) ────────────────────────
+# ── 5. Claude Code (CLAUDE.md) ───────────────────────────
+if [ -d "${HOME}/.claude" ] || command -v claude &>/dev/null; then
+  CLAUDE_DEST="${HOME}/CLAUDE.md"
+  if [ ! -f "$CLAUDE_DEST" ] || ! grep -q "daou-gw" "$CLAUDE_DEST" 2>/dev/null; then
+    cat >> "$CLAUDE_DEST" 2>/dev/null <<'MD'
+
+## daou-gw-cli
+
+Daou Office groupware CLI tool. Installed globally as `daou-gw-cli`.
+See `~/.hermes/skills/productivity/daou-gw/SKILL.md` or the repo README for commands.
+MD
+    ok "Claude Code reference added → $CLAUDE_DEST"
+  else
+    ok "Claude Code already references daou-gw"
+  fi
+else
+  skip "Claude Code not detected — skipped"
+fi
+
+# ── 6. Generic agents (AGENTS.md) ────────────────────────
 AGENTS_DEST="${HOME}/AGENTS.md"
 if [ ! -f "$AGENTS_DEST" ] || ! grep -q "daou-gw" "$AGENTS_DEST" 2>/dev/null; then
   cat >> "$AGENTS_DEST" 2>/dev/null <<'MD'
