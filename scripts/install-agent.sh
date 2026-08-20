@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # daou-gw-cli Agent Installer
-# Installs this project as an AI-ready tool for Hermes, Claude Code, Codex CLI, etc.
+# Installs this project as an agent-ready tool (global link, Hermes skill, AGENTS.md).
 # Usage: bash scripts/install-agent.sh [--hermes-only] [--link-only]
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -67,26 +67,7 @@ if [ -f "$REPO_DIR/dist/mcp.js" ] && [ -d "${HOME}/.hermes" ] && [ "${1:-}" != "
   fi
 fi
 
-# ── 5. Claude Code (CLAUDE.md) ───────────────────────────
-if [ -d "${HOME}/.claude" ] || command -v claude &>/dev/null; then
-  CLAUDE_DEST="${HOME}/CLAUDE.md"
-  if [ ! -f "$CLAUDE_DEST" ] || ! grep -q "daou-gw" "$CLAUDE_DEST" 2>/dev/null; then
-    cat >> "$CLAUDE_DEST" 2>/dev/null <<'MD'
-
-## daou-gw-cli
-
-Daou Office groupware CLI tool. Installed globally as `daou-gw-cli`.
-See `~/.hermes/skills/productivity/daou-gw/SKILL.md` or the repo README for commands.
-MD
-    ok "Claude Code reference added → $CLAUDE_DEST"
-  else
-    ok "Claude Code already references daou-gw"
-  fi
-else
-  skip "Claude Code not detected — skipped"
-fi
-
-# ── 6. Codex CLI / generic agents (AGENTS.md) ────────────
+# ── 5. Generic agents (AGENTS.md) ────────────────────────
 AGENTS_DEST="${HOME}/AGENTS.md"
 if [ ! -f "$AGENTS_DEST" ] || ! grep -q "daou-gw" "$AGENTS_DEST" 2>/dev/null; then
   cat >> "$AGENTS_DEST" 2>/dev/null <<'MD'
@@ -99,19 +80,30 @@ Available globally as `daou-gw-cli`. All commands support `--json` for machine p
 |--------|---------|
 | Login | `daou-gw-cli login --username <id>` |
 | Session check | `daou-gw-cli session` |
-| Attend status | `daou-gw-cli attend status` |
-| Clock in | `daou-gw-cli attend in` |
-| Clock out | `daou-gw-cli attend out` |
 | Mail list | `daou-gw-cli mail list --size N` |
 | Mail search | `daou-gw-cli mail search --query <q> --size N` |
-| Mail delete | `daou-gw-cli mail delete --id X` |
-| Calendar | `daou-gw-cli calendar list [--date YYYY-MM-DD]` |
+| Mail delete | `daou-gw-cli mail delete --id X [--id Y ...]` |
+| Mail send | `daou-gw-cli mail send --to <email> --subject <t> --content <html>` |
+| Calendar | `daou-gw-cli calendar list [--from-date YYYY-MM-DD] [--to-date YYYY-MM-DD]` |
+| Calendar digest | `daou-gw-cli calendar summary --range today\|day\|week\|month` |
 | Approval todo | `daou-gw-cli approval todo [--size N]` |
 | Approval reference | `daou-gw-cli approval reference [--size N]` |
+| Document boxes | `daou-gw-cli approval box --kind draft\|tempsave\|approve\|viewer\|reception\|send\|official` |
+| Find a form | `daou-gw-cli approval form-search --query <text>` |
+| Draft a document | `daou-gw-cli approval draft --form-id <id> [--title <t>]` (임시저장까지만) |
+| Annual leave | `daou-gw-cli leavecount` |
+| Org chart | `daou-gw-cli org tree [--members]` |
+| Find a person | `daou-gw-cli org search --query <name/dept>` |
 | Board create | `daou-gw-cli board create --board-id <id> --subject <t> --content <html>` |
 | Board update | `daou-gw-cli board update --board-id <id> --post-id <id> --subject <t> --content <html>` |
+| Board attach | `daou-gw-cli board attach --board-id <id> --post-id <id> --file <path>` |
 | Board image | Use `src="[{/absolute/path/file.png}]"` placeholder in HTML — auto-uploaded |
 | MCP server | `daou-gw-mcp` (stdio transport) |
+
+Attendance commands (`attend status|in|out|history`) only exist when enabled:
+`daou-gw-cli config set --attend`.
+
+Never guess a flag — `daou-gw-cli <command> --help` is generated from the real schema.
 MD
   ok "AGENTS.md reference added → $AGENTS_DEST"
 else

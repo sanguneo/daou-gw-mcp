@@ -54,7 +54,7 @@ npm install
 npm run build
 ```
 
-AI 에이전트 환경(Hermes · Claude Code · Codex CLI 등)에 한 번에 설치:
+에이전트 환경(전역 링크 · Hermes skill · `AGENTS.md`)에 한 번에 설치:
 
 ```bash
 bash scripts/install-agent.sh
