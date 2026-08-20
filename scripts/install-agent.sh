@@ -2,12 +2,14 @@
 set -euo pipefail
 
 # daou-gw-cli Agent Installer
-# Installs this project as an agent-ready tool (global link, Hermes skill, AGENTS.md).
-# Usage: bash scripts/install-agent.sh [--hermes-only] [--link-only]
+# Installs this project for Codex, Claude Code, Hermes, OpenClaw and generic agents.
+# Usage: bash scripts/install-agent.sh
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 HERMES_SKILL_DIR="${HOME}/.hermes/skills/productivity/daou-gw"
-HERMES_MCP_DIR="${HOME}/.hermes/mcp"
+CODEX_GUIDE="${HOME}/.codex/AGENTS.md"
+OPENCLAW_GUIDE="${HOME}/.openclaw/workspace/AGENTS.md"
+OPENCLAW_SKILL_DIR="${HOME}/.openclaw/skills/daou-gw"
 
 info()  { echo -e "  \033[1;34m→\033[0m $*"; }
 ok()    { echo -e "  \033[1;32m✓\033[0m $*"; }
@@ -51,7 +53,7 @@ else
 fi
 
 # ── 4. MCP config (optional) ─────────────────────────────
-if [ -f "$REPO_DIR/dist/mcp.js" ] && [ -d "${HOME}/.hermes" ] && [ "${1:-}" != "--hermes-only" ]; then
+if [ -f "$REPO_DIR/dist/mcp.js" ] && [ -d "${HOME}/.hermes" ]; then
   MCP_CONFIG="${HOME}/.hermes/config.yaml"
   MCP_NAME="daou-gw"
   if command -v yq &>/dev/null; then
@@ -69,7 +71,8 @@ fi
 
 # ── 5. Claude Code (CLAUDE.md) ───────────────────────────
 if [ -d "${HOME}/.claude" ] || command -v claude &>/dev/null; then
-  CLAUDE_DEST="${HOME}/CLAUDE.md"
+  CLAUDE_DEST="${HOME}/.claude/CLAUDE.md"
+  mkdir -p "$(dirname "$CLAUDE_DEST")"
   if [ ! -f "$CLAUDE_DEST" ] || ! grep -q "daou-gw" "$CLAUDE_DEST" 2>/dev/null; then
     cat >> "$CLAUDE_DEST" 2>/dev/null <<'MD'
 
@@ -86,7 +89,51 @@ else
   skip "Claude Code not detected — skipped"
 fi
 
-# ── 6. Generic agents (AGENTS.md) ────────────────────────
+# ── 6. Codex CLI ─────────────────────────────────────────
+if [ -d "${HOME}/.codex" ] || command -v codex &>/dev/null; then
+  mkdir -p "$(dirname "$CODEX_GUIDE")"
+  if [ ! -f "$CODEX_GUIDE" ] || ! grep -q "daou-gw" "$CODEX_GUIDE" 2>/dev/null; then
+    cat >> "$CODEX_GUIDE" <<'MD'
+
+## daou-gw-cli
+
+Daou Office groupware CLI. Installed globally as `daou-gw-cli`.
+All commands support `--json`; use `daou-gw-cli <command> --help` for flags.
+See the repository `AGENTS.md` and `docs/agent-setup.md`.
+MD
+    ok "Codex reference added → $CODEX_GUIDE"
+  else
+    ok "Codex already references daou-gw"
+  fi
+else
+  skip "Codex not detected — skipped"
+fi
+
+# ── 7. OpenClaw ──────────────────────────────────────────
+if [ -d "${HOME}/.openclaw" ] || command -v openclaw &>/dev/null; then
+  mkdir -p "$(dirname "$OPENCLAW_GUIDE")" "$OPENCLAW_SKILL_DIR"
+  if [ -f "$REPO_DIR/SKILL.md" ]; then
+    cp "$REPO_DIR/SKILL.md" "$OPENCLAW_SKILL_DIR/SKILL.md"
+    ok "OpenClaw skill installed → $OPENCLAW_SKILL_DIR/SKILL.md"
+  fi
+  if [ ! -f "$OPENCLAW_GUIDE" ] || ! grep -q "daou-gw" "$OPENCLAW_GUIDE" 2>/dev/null; then
+    cat >> "$OPENCLAW_GUIDE" <<'MD'
+
+## daou-gw-cli
+
+Daou Office groupware CLI. Installed globally as `daou-gw-cli`.
+All commands support `--json`; use `daou-gw-cli <command> --help` for flags.
+The `daou-gw` skill contains the command guide.
+MD
+    ok "OpenClaw reference added → $OPENCLAW_GUIDE"
+  else
+    ok "OpenClaw already references daou-gw"
+  fi
+else
+  skip "OpenClaw not detected — skipped"
+fi
+
+# ── 8. Generic agents (AGENTS.md) ────────────────────────
 AGENTS_DEST="${HOME}/AGENTS.md"
 if [ ! -f "$AGENTS_DEST" ] || ! grep -q "daou-gw" "$AGENTS_DEST" 2>/dev/null; then
   cat >> "$AGENTS_DEST" 2>/dev/null <<'MD'
@@ -136,6 +183,7 @@ echo "   Install path: $(command -v daou-gw-cli || echo '(symlink pending — re
 echo "   Config:       ~/.daou/config.json"
 echo "   Session:      ~/.daou/session.json"
 echo "   Hermes skill: $HERMES_SKILL_DIR/SKILL.md"
+echo "   Agent guide:  $REPO_DIR/docs/agent-setup.md"
 echo "  ──────────────────────────────────────────────"
 echo ""
 echo "   Verification: daou-gw-cli session"

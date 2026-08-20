@@ -54,11 +54,14 @@ npm install
 npm run build
 ```
 
-에이전트 환경(Hermes · Claude Code · Codex CLI 등)에 한 번에 설치:
+에이전트 환경(Codex · Claude Code · Hermes · OpenClaw · 기타)에 한 번에 설치:
 
 ```bash
 bash scripts/install-agent.sh
 ```
+
+에이전트별 지침 경로, 스킬 설치 위치, MCP 등록 명령은
+**[에이전트 설치 가이드](docs/agent-setup.md)**를 참고하세요.
 
 설치 확인:
 
