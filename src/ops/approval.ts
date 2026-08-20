@@ -6,7 +6,6 @@ import {
   DOCUMENT_BOX_KINDS,
   approvalCount,
   approvalDocument,
-  approvalLeaveCount,
   approvalList,
   documentNew,
   documentTempSave,
@@ -26,8 +25,6 @@ import {
   formatDraftSaved,
   formatFormSearch,
   formatFormTree,
-  formatLeaveCount,
-  leaveVariables,
 } from '../render/approval.js';
 
 const listFilters = {
@@ -98,33 +95,6 @@ export const approvalCountOp = defineOperation({
   run: async (ctx) => {
     const raw = await approvalCount(ctx.baseUrl(), ctx.session);
     return rawResult(raw, formatApprovalCount(raw));
-  },
-});
-
-export const approvalLeaveCountOp = defineOperation({
-  id: 'approval.leave_count',
-  tool: 'approval_leave_count',
-  cli: ['leavecount'],
-  summary: 'Show annual leave usage and balance',
-  input: z.strictObject({
-    form_id: z.number().int().min(1).default(4621).describe('Leave request form id'),
-    dept_id: z.number().int().min(1).default(159).describe('Department id'),
-  }),
-  auth: true,
-  run: async (ctx, input) => {
-    const raw = await approvalLeaveCount(ctx.baseUrl(), ctx.session, input.form_id, input.dept_id);
-    const variables = leaveVariables(raw);
-    return {
-      data: variables
-        ? {
-            usedPoint: variables.usedPoint,
-            restPoint: variables.restPoint,
-            additionPoint: variables.additionPoint,
-            totalPoint: variables.totalPoint,
-          }
-        : { raw },
-      text: formatLeaveCount(raw),
-    };
   },
 });
 
@@ -245,7 +215,6 @@ export const approvalOperations = [
   approvalTodo,
   approvalReference,
   approvalCountOp,
-  approvalLeaveCountOp,
   approvalFormTree,
   approvalFormSearch,
   approvalDraftCreate,

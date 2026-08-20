@@ -13,7 +13,8 @@ export function formatConfig(cfg: Config): string {
   } else {
     out.push('- Base URL: 없음', '- 경고: 로그인할 때 --base-url를 넣어줘');
   }
-  if (cfg.attend) out.push('- Attend: 활성화');
+  if (cfg.leave_form_id) out.push(`- Leave Form ID: ${cfg.leave_form_id}`);
+  if (cfg.leave_dept_id) out.push(`- Leave Department ID: ${cfg.leave_dept_id}`);
 
   const mailKeys = [
     ['Mail List URL', cfg.mail_list_url],

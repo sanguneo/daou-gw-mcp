@@ -157,17 +157,17 @@ Available globally as `daou-gw-cli`. All commands support `--json` for machine p
 | Document boxes | `daou-gw-cli approval box --kind draft\|tempsave\|approve\|viewer\|reception\|send\|official` |
 | Find a form | `daou-gw-cli approval form-search --query <text>` |
 | Draft a document | `daou-gw-cli approval draft --form-id <id> [--title <t>]` (임시저장까지만) |
-| Annual leave | `daou-gw-cli leavecount` |
+| Annual leave | `DAOU_LEAVE_FORM_ID=<id> daou-gw-cli leavecount` |
 | Org chart | `daou-gw-cli org tree [--members]` |
 | Find a person | `daou-gw-cli org search --query <name/dept>` |
+| Attendance sheet | `daou-gw-cli attend history [--month YYYY-MM]` |
 | Board create | `daou-gw-cli board create --board-id <id> --subject <t> --content <html>` |
 | Board update | `daou-gw-cli board update --board-id <id> --post-id <id> --subject <t> --content <html>` |
 | Board attach | `daou-gw-cli board attach --board-id <id> --post-id <id> --file <path>` |
 | Board image | Use `src="[{/absolute/path/file.png}]"` placeholder in HTML — auto-uploaded |
 | MCP server | `daou-gw-mcp` (stdio transport) |
 
-Attendance commands (`attend status|in|out|history`) only exist when enabled:
-`daou-gw-cli config set --attend`.
+Clock status/in/out commands are intentionally unavailable.
 
 Never guess a flag — `daou-gw-cli <command> --help` is generated from the real schema.
 MD

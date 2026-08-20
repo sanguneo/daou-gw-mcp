@@ -7,8 +7,8 @@ export interface Config {
   base_url?: string;
   username?: string;
   password?: string;
-  /** When false/absent the attendance feature is hidden from every surface. */
-  attend?: boolean;
+  leave_form_id?: string;
+  leave_dept_id?: string;
   mail_list_url?: string;
   mail_search_url?: string;
   mail_delete_url?: string;

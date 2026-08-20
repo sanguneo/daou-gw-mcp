@@ -14,13 +14,17 @@ async function toolNames(): Promise<string[]> {
 }
 
 describe('mcp tool visibility', () => {
-  it('hides the attendance tools until the switch is on', async () => {
-    await useTempHome();
+  it('exposes attendance history but never clock actions', async () => {
+    const tmp = await useTempHome();
 
     expect(await toolNames()).toEqual(expect.not.arrayContaining(['attend_status', 'attend_in', 'attend_out']));
-
-    await saveConfig({ base_url: 'http://example.com', attend: true });
-    expect(await toolNames()).toEqual(expect.arrayContaining(['attend_status', 'attend_in', 'attend_out']));
+    await fs.mkdir(path.join(tmp, '.daou'), { recursive: true });
+    await fs.writeFile(path.join(tmp, '.daou', 'config.json'), JSON.stringify({
+      base_url: 'http://example.com',
+      attend: true,
+    }));
+    expect(await toolNames()).toEqual(expect.arrayContaining(['attend_history']));
+    expect(await toolNames()).toEqual(expect.not.arrayContaining(['attend_status', 'attend_in', 'attend_out']));
   });
 
   it('always exposes the core tools', async () => {
@@ -51,12 +55,10 @@ describe('mcp tool visibility', () => {
     expect(result.content[0].text).toBe('unknown tool');
   });
 
-  it('accepts the legacy attendance tool names once enabled', async () => {
+  it('refuses legacy clock action aliases', async () => {
     await useTempHome();
-    await saveConfig({ base_url: 'http://example.com', attend: true });
     const result = await callTool('attendance_status', {});
-    // Reaches the operation (and fails on the unreachable host) instead of 404-ing on the name.
-    expect(result.content[0].text).not.toBe('unknown tool');
+    expect(result.content[0].text).toBe('unknown tool');
   });
 });
 
@@ -99,7 +101,6 @@ describe('mcp config tool', () => {
     const tmp = await useTempHome();
     const result = await callTool('config_set', {
       base_url: 'http://example.com',
-      attend: true,
       password: 'secret',
     });
 
@@ -109,11 +110,9 @@ describe('mcp config tool', () => {
 
     const saved = JSON.parse(await fs.readFile(path.join(tmp, '.daou', 'config.json'), 'utf8')) as {
       base_url?: string;
-      attend?: boolean;
       password?: string;
     };
     expect(saved.base_url).toBe('http://example.com');
-    expect(saved.attend).toBe(true);
     expect(saved.password).not.toBe('secret');
   });
 });

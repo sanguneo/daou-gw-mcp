@@ -5,17 +5,18 @@
 
 ## 공통 설치
 
-Git Bash, WSL 또는 macOS/Linux 셸에서 실행합니다.
-
 ```bash
-bash scripts/install-agent.sh
+npm install -g daou-gw-cli
 daou-gw-cli session
 ```
 
-스크립트는 프로젝트를 빌드하고 `npm link`로 다음 두 실행 파일을 전역에 연결합니다.
+다음 두 실행 파일이 전역에 설치됩니다.
 
 - `daou-gw-cli`: CLI
 - `daou-gw-mcp`: stdio MCP 서버
+
+저장소를 직접 내려받았다면 Git Bash, WSL 또는 macOS/Linux 셸에서
+`bash scripts/install-agent.sh`를 실행해 빌드·전역 링크·감지된 에이전트 지침 설치를 한 번에 처리할 수 있습니다.
 
 Windows PowerShell에서 명령을 찾지 못하면 터미널을 다시 열고 확인합니다.
 

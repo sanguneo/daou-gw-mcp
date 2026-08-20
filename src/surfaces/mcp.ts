@@ -4,7 +4,7 @@ import { findByTool, operationJsonSchema, visibleOperations, type Operation } fr
 import { loadConfig } from '../core/storage.js';
 import { OPERATIONS } from '../ops/index.js';
 
-export const SERVER_INFO = { name: 'daou-gw-cli', version: '0.2.0' } as const;
+export const SERVER_INFO = { name: 'daou-gw-cli', version: '0.3.0' } as const;
 
 export interface McpTool {
   name: string;
@@ -20,17 +20,6 @@ export interface ToolCallResult {
   [key: string]: unknown;
 }
 
-/** Names kept working for older clients. */
-const TOOL_ALIASES: Record<string, string> = {
-  attendance_status: 'attend_status',
-  attendance_in: 'attend_in',
-  attendance_out: 'attend_out',
-};
-
-function resolveToolName(name: string): string {
-  return TOOL_ALIASES[name] ?? name;
-}
-
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const proto = Object.getPrototypeOf(value);
@@ -41,7 +30,7 @@ function toolFrom(op: Operation): McpTool {
   return { name: op.tool, description: op.summary, inputSchema: operationJsonSchema(op) };
 }
 
-/** Tools currently exposed, honouring the attendance visibility switch. */
+/** Tools currently exposed by the operation registry. */
 export async function listTools(): Promise<McpTool[]> {
   const cfg = await loadConfig();
   return visibleOperations(OPERATIONS, cfg).map(toolFrom);
@@ -62,7 +51,7 @@ function formatZodError(error: z.ZodError): string {
 
 export async function callTool(name: string, args: unknown): Promise<ToolCallResult> {
   const cfg = await loadConfig();
-  const op = findByTool(visibleOperations(OPERATIONS, cfg), resolveToolName(name));
+  const op = findByTool(visibleOperations(OPERATIONS, cfg), name);
   if (!op) return fail('unknown tool');
 
   if (args !== undefined && !isPlainObject(args)) return fail('invalid arguments');

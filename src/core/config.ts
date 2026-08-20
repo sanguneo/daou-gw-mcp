@@ -21,7 +21,8 @@ export const CONFIG_FIELDS: ConfigFieldSpec[] = [
   { key: 'base_url', type: 'string', env: 'DAOU_BASE_URL', describe: 'Daou groupware base URL' },
   { key: 'username', type: 'string', env: 'DAOU_USERNAME', describe: 'Login id' },
   { key: 'password', type: 'string', env: 'DAOU_PASSWORD', describe: 'Login password (encrypted at rest)', secret: true },
-  { key: 'attend', type: 'boolean', env: 'DAOU_ATTEND', describe: 'Expose the attendance (clock in/out) feature' },
+  { key: 'leave_form_id', type: 'string', env: 'DAOU_LEAVE_FORM_ID', describe: 'Annual leave request form id' },
+  { key: 'leave_dept_id', type: 'string', env: 'DAOU_LEAVE_DEPT_ID', describe: 'Annual leave department id (auto-resolved when omitted)' },
   { key: 'mail_list_url', type: 'string', env: 'DAOU_MAIL_LIST_URL', describe: 'Override mail list endpoint' },
   { key: 'mail_search_url', type: 'string', env: 'DAOU_MAIL_SEARCH_URL', describe: 'Override mail search endpoint' },
   { key: 'mail_delete_url', type: 'string', env: 'DAOU_MAIL_DELETE_URL', describe: 'Override mail delete endpoint' },
@@ -77,7 +78,6 @@ export function applyEnvFallbacks(cfg: Config): Config {
   }
   return out;
 }
-
 /** Merge a patch into config, ignoring blank strings so flags never wipe values. */
 export function mergeConfig(cfg: Config, patch: ConfigPatch): Config {
   const out: Config = { ...cfg };
@@ -93,9 +93,4 @@ export function mergeConfig(cfg: Config, patch: ConfigPatch): Config {
     }
   }
   return out;
-}
-
-/** Attendance is opt-in; every surface asks this before exposing the feature. */
-export function attendEnabled(cfg: Config): boolean {
-  return cfg.attend === true;
 }

@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { loadContext, requireSession } from '../core/context.js';
 import { jsonText, operationJsonSchema, visibleOperations, type Operation } from '../core/registry.js';
 import { OPERATIONS } from '../ops/index.js';
-import type { Config } from '../core/types.js';
 
 interface JsonSchemaProperty {
   type?: string;
@@ -167,13 +166,8 @@ function buildProgram(ops: Operation[], exitCode: { value: number }): Command {
 }
 
 export async function runCli(argv: string[]): Promise<number> {
-  const args = [...argv];
-  const attendOverride = args[0] === '--attend';
-  if (attendOverride) args.shift();
-
   const { cfg } = await loadContext();
-  const effective: Config = attendOverride ? { ...cfg, attend: true } : cfg;
-  const ops = visibleOperations(OPERATIONS, effective);
+  const ops = visibleOperations(OPERATIONS, cfg);
 
   const exitCode = { value: 0 };
   const program = buildProgram(ops, exitCode);
@@ -183,13 +177,13 @@ export async function runCli(argv: string[]): Promise<number> {
     writeErr: (str) => process.stderr.write(str),
   });
 
-  if (args.length === 0) {
+  if (argv.length === 0) {
     process.stdout.write(program.helpInformation());
     return 0;
   }
 
   try {
-    await program.parseAsync(args, { from: 'user' });
+    await program.parseAsync(argv, { from: 'user' });
     return exitCode.value;
   } catch (err) {
     const code = (err as { code?: string })?.code;

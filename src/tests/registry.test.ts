@@ -27,6 +27,9 @@ describe('operation registry', () => {
   it('derives required arguments from the zod schema', () => {
     expect(schemaFor('login').required).toEqual(expect.arrayContaining(['username', 'password']));
     expect(schemaFor('mail_search').required).toEqual(['query']);
+    expect(schemaFor('approval_leave_count').required).toEqual([]);
+    expect(schemaFor('approval_leave_count').properties.form_id.default).toBeUndefined();
+    expect(schemaFor('approval_leave_count').properties.dept_id.default).toBeUndefined();
     expect(schemaFor('board_post_create').required).toEqual(
       expect.arrayContaining(['board_id', 'subject', 'content']),
     );

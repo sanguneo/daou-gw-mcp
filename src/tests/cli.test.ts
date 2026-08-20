@@ -36,36 +36,27 @@ describe('cli surface', () => {
     expect(value).toBe(0);
     expect(output).toContain('mail');
     expect(output).toContain('board');
-    expect(output).not.toContain('attend');
-  });
-
-  it('shows attendance commands when the switch is on', async () => {
-    await useTempHome();
-    await saveConfig({ attend: true });
-    const { output } = await captureStdout(() => runCli([]));
     expect(output).toContain('attend');
   });
 
   it('saves and shows config', async () => {
     await useTempHome();
-    const code = await captureStdout(() => runCli(['config', 'set', '--base-url', 'http://example.com', '--username', 'u', '--attend']));
+    const code = await captureStdout(() => runCli(['config', 'set', '--base-url', 'http://example.com', '--username', 'u']));
     expect(code.value).toBe(0);
 
     const cfg = await loadConfig();
     expect(cfg.base_url).toBe('http://example.com');
     expect(cfg.username).toBe('u');
-    expect(cfg.attend).toBe(true);
 
     const shown = await captureStdout(() => runCli(['config', 'show']));
     expect(shown.value).toBe(0);
     expect(shown.output).toContain('Base URL: http://example.com');
   });
 
-  it('reads --attend false as turning the switch off', async () => {
+  it('rejects the removed attendance switch', async () => {
     await useTempHome();
-    await saveConfig({ attend: true });
-    await captureStdout(() => runCli(['config', 'set', '--attend', 'false']));
-    expect((await loadConfig()).attend).toBe(false);
+    const { value } = await captureStdout(() => runCli(['config', 'set', '--attend']));
+    expect(value).toBe(1);
   });
 
   it('rejects an unknown flag', async () => {
@@ -323,8 +314,8 @@ describe('cli surface', () => {
 
 describe('organization cli', () => {
   const DIRECTORY = [
-    { id: 1, name: '나상권', email: 'sknah@aegisep.com', position: '과장', departments: [{ name: '개발3파트' }], mobileNo: '010-1111-2222', manager: false },
-    { id: 2, name: '김철수', email: 'kim@aegisep.com', position: '대리', departments: [{ name: '영업팀' }], manager: false },
+    { id: 1, name: '사용자A', email: 'user-a@example.com', position: '과장', departments: [{ name: '플랫폼팀' }], mobileNo: '010-0000-0000', manager: false },
+    { id: 2, name: '사용자B', email: 'user-b@example.com', position: '대리', departments: [{ name: '영업팀' }], manager: false },
   ];
 
   function directoryServer(onHit: () => void) {
@@ -346,10 +337,10 @@ describe('organization cli', () => {
       await saveConfig({ base_url: server.baseUrl });
       await saveSession({ user_id: SESSION_USER.id, cookies: COOKIE });
 
-      const first = await captureStdout(() => runCli(['org', 'search', '--query', '개발3파트']));
+      const first = await captureStdout(() => runCli(['org', 'search', '--query', '플랫폼팀']));
       expect(first.value).toBe(0);
-      expect(first.output).toContain('나상권');
-      expect(first.output).not.toContain('김철수');
+      expect(first.output).toContain('사용자A');
+      expect(first.output).not.toContain('사용자B');
       expect(hits).toBe(1);
 
       const cache = JSON.parse(await fs.readFile(path.join(home, '.daou', 'directory.json'), 'utf8')) as { entries: unknown[] };
@@ -359,10 +350,10 @@ describe('organization cli', () => {
     }
 
     // The server is gone; a second search must be served from the cache.
-    const cached = await captureStdout(() => runCli(['org', 'search', '--query', '김']));
+    const cached = await captureStdout(() => runCli(['org', 'search', '--query', '사용자B']));
     expect(cached.value).toBe(0);
-    expect(cached.output).toContain('김철수');
-    expect(cached.output).not.toContain('나상권');
+    expect(cached.output).toContain('사용자B');
+    expect(cached.output).not.toContain('사용자A');
   });
 
   it('re-fetches the directory when --refresh is passed', async () => {
@@ -382,12 +373,12 @@ describe('organization cli', () => {
   });
 
   const ORG_TREE = [{
-    data: { id: 'company_10', title: '이지스엔터프라이즈', attr: { id: 'company_10', title: '이지스엔터프라이즈', rel: 'company', nodeId: 10 } },
+    data: { id: 'company_1', title: '예시회사', attr: { id: 'company_1', title: '예시회사', rel: 'company', nodeId: 1 } },
     children: [{
-      data: { id: 'org_159', title: '개발3파트', attr: { id: 'org_159', title: '개발3파트', rel: 'org', nodeId: 159 } },
+      data: { id: 'org_3', title: '플랫폼팀', attr: { id: 'org_3', title: '플랫폼팀', rel: 'org', nodeId: 3 } },
       children: [{
-        data: { id: 'USER_848', title: '나상권 과장', attr: { id: 'USER_848', title: '나상권 과장', rel: 'USER', nodeId: 848 } },
-        metadata: { id: 7, name: '나상권' },
+        data: { id: 'USER_7', title: '사용자A 과장', attr: { id: 'USER_7', title: '사용자A 과장', rel: 'USER', nodeId: 7 } },
+        metadata: { id: 7, name: '사용자A' },
         children: [],
       }],
     }],
@@ -406,9 +397,9 @@ describe('organization cli', () => {
       const { value, output } = await captureStdout(() => runCli(['org', 'tree']));
       expect(value).toBe(0);
       expect(output).toContain('조직도');
-      expect(output).toContain('+ 이지스엔터프라이즈 (#10)');
-      expect(output).toContain('  + 개발3파트 (#159)');
-      expect(output).not.toContain('나상권');
+      expect(output).toContain('+ 예시회사 (#1)');
+      expect(output).toContain('  + 플랫폼팀 (#3)');
+      expect(output).not.toContain('사용자A');
     } finally {
       await server.close();
     }
@@ -425,7 +416,7 @@ describe('organization cli', () => {
       await saveConfig({ base_url: server.baseUrl });
       await saveSession({ user_id: SESSION_USER.id, cookies: COOKIE });
       const { output } = await captureStdout(() => runCli(['org', 'tree', '--members']));
-      expect(output).toContain('    - 나상권 과장');
+      expect(output).toContain('    - 사용자A 과장');
     } finally {
       await server.close();
     }
@@ -447,13 +438,39 @@ describe('approval form and draft cli', () => {
       '/api/user/session': sessionRoute,
       '/api/approval/apprform/tree': (req, res) => {
         const folder = new URL(req.url ?? '/', 'http://127.0.0.1').searchParams.get('folderId');
-        if (folder === '12') return json(res, [formNode(5374, '연차신청-연차관리연동'), formNode(4791, '지각확인서')]);
-        if (folder === '11') return json(res, [formNode(3001, '경조사비 신청서')]);
-        return json(res, [folderNode(11, '복지'), folderNode(12, '근태')]);
+        if (folder === '2') return json(res, [formNode(101, '휴가신청서'), formNode(102, '지각확인서')]);
+        if (folder === '1') return json(res, [formNode(103, '복지비 신청서')]);
+        return json(res, [folderNode(1, '복지'), folderNode(2, '근태')]);
       },
       ...extra,
     });
   }
+
+  it('reads annual leave form and department ids from the environment', async () => {
+    await useTempHome();
+    vi.stubEnv('DAOU_LEAVE_FORM_ID', '101');
+    vi.stubEnv('DAOU_LEAVE_DEPT_ID', '3');
+    let requested = '';
+    const server = await startServer(routes({
+      '/api/user/session': sessionRoute,
+      '/api/approval/document/new': (req, res) => {
+        requested = req.url ?? '';
+        json(res, { data: { document: { variables: { restPoint: '7.0' } } } });
+      },
+    }));
+
+    try {
+      await saveConfig({ base_url: server.baseUrl });
+      await saveSession({ user_id: SESSION_USER.id, cookies: COOKIE });
+      const { value, output } = await captureStdout(() => runCli(['leavecount']));
+      expect(value).toBe(0);
+      expect(requested).toContain('formId=101');
+      expect(requested).toContain('deptId=3');
+      expect(output).toContain('잔여연차: 7.0');
+    } finally {
+      await server.close();
+    }
+  });
 
   it('searches forms across folders and reports the form id', async () => {
     await useTempHome();
@@ -462,11 +479,11 @@ describe('approval form and draft cli', () => {
     try {
       await saveConfig({ base_url: server.baseUrl });
       await saveSession({ user_id: SESSION_USER.id, cookies: COOKIE });
-      const { value, output } = await captureStdout(() => runCli(['approval', 'form-search', '--query', '연차']));
+      const { value, output } = await captureStdout(() => runCli(['approval', 'form-search', '--query', '휴가']));
 
       expect(value).toBe(0);
       expect(output).toContain('전체: 3개 / 결과: 1개');
-      expect(output).toContain('근태 > 연차신청-연차관리연동 (form 5374)');
+      expect(output).toContain('근태 > 휴가신청서 (form 101)');
       expect(output).not.toContain('지각확인서');
     } finally {
       await server.close();
@@ -483,9 +500,9 @@ describe('approval form and draft cli', () => {
       const { value, output } = await captureStdout(() => runCli(['approval', 'forms']));
       expect(value).toBe(0);
       expect(output).toContain('+ 복지');
-      expect(output).toContain('  - 경조사비 신청서 (form 3001)');
+      expect(output).toContain('  - 복지비 신청서 (form 103)');
       expect(output).toContain('+ 근태');
-      expect(output).toContain('  - 연차신청-연차관리연동 (form 5374)');
+      expect(output).toContain('  - 휴가신청서 (form 101)');
     } finally {
       await server.close();
     }
@@ -500,56 +517,56 @@ describe('approval form and draft cli', () => {
     const server = await startServer(routes({
       '/api/user/session': sessionRoute,
       '/api/organization/list': (_req, res) => json(res, [{
-        data: { id: 'company_10', title: '회사', attr: { id: 'company_10', title: '회사', rel: 'company', nodeId: 10 } },
+        data: { id: 'company_1', title: '예시회사', attr: { id: 'company_1', title: '예시회사', rel: 'company', nodeId: 1 } },
         children: [{
-          data: { id: 'org_159', title: '개발3파트', attr: { id: 'org_159', title: '개발3파트', rel: 'org', nodeId: 159 } },
+          data: { id: 'org_3', title: '플랫폼팀', attr: { id: 'org_3', title: '플랫폼팀', rel: 'org', nodeId: 3 } },
           children: [{
-            data: { id: 'USER_848', title: '나상권', attr: { id: 'USER_848', title: '나상권', rel: 'USER', nodeId: 848 } },
-            metadata: { id: 7, name: '나상권' },
+            data: { id: 'USER_7', title: '사용자A', attr: { id: 'USER_7', title: '사용자A', rel: 'USER', nodeId: 7 } },
+            metadata: { id: 7, name: '사용자A' },
             children: [],
           }],
         }],
       }]),
       '/api/approval/document/new': (_req, res) => json(res, {
         data: {
-          id: 93191,
+          id: 901,
           document: {
-            id: 93191, documentId: 93191, formName: '연차신청-연차관리연동',
+            id: 901, documentId: 901, formName: '휴가신청서',
             docBodyContent: '<p>template</p>', variables: { restPoint: '7.0' },
             attachCount: 0, attaches: [], comments: [], references: [], reDraft: false,
             updatedAt: '2026-08-20T10:00:00.000+09:00',
           },
           // The real endpoint returns fully expanded folder objects and numeric scalars.
           docInfo: {
-            id: 93191,
-            formId: 5374,
-            securityLevelId: 22,
+            id: 901,
+            formId: 101,
+            securityLevelId: 1,
             docYear: 5,
             isPublic: false,
             isEmergency: false,
-            docFolders: [{ id: 12, name: '근태', state: 'HIDDEN' }],
-            defaultFolder: { id: 12, name: '근태' },
-            docReferenceReaders: [{ id: 168079, readerType: '참조문서' }],
+            docFolders: [{ id: 2, name: '근태', state: 'HIDDEN' }],
+            defaultFolder: { id: 2, name: '근태' },
+            docReferenceReaders: [{ id: 99, readerType: '참조문서' }],
             officialVersions: [{ state: 'CREATE' }],
-            drafterDeptId: 159,
+            drafterDeptId: 3,
           },
-          apprFlow: { id: 93191, currentActivityId: 264371 },
+          apprFlow: { id: 901, currentActivityId: 1001 },
         },
       }),
-      '/api/approval/document/93191/tempsave': async (req, res) => {
+      '/api/approval/document/901/tempsave': async (req, res) => {
         tempsaveMethod = req.method ?? '';
         tempsaveBody = JSON.parse(await readBody(req));
-        json(res, { data: { document: { id: 93191, title: '8월 연차', formName: '연차신청-연차관리연동', docStatus: 'TEMPSAVE', docStatusName: '임시저장' } } });
+        json(res, { data: { document: { id: 901, title: '휴가 신청', formName: '휴가신청서', docStatus: 'TEMPSAVE', docStatusName: '임시저장' } } });
       },
-      '/api/approval/document/93191/submit': (_req, res) => { forbidden.push('submit'); json(res, {}); },
-      '/api/approval/document/93191/approval': (_req, res) => { forbidden.push('approval'); json(res, {}); },
+      '/api/approval/document/901/submit': (_req, res) => { forbidden.push('submit'); json(res, {}); },
+      '/api/approval/document/901/approval': (_req, res) => { forbidden.push('approval'); json(res, {}); },
     }));
 
     try {
       await saveConfig({ base_url: server.baseUrl });
       await saveSession({ user_id: SESSION_USER.id, cookies: COOKIE });
       const { value, output } = await captureStdout(() => runCli([
-        'approval', 'draft', '--form-id', '5374', '--title', '8월 연차', '--content', '<p>사유</p>',
+        'approval', 'draft', '--form-id', '101', '--title', '휴가 신청', '--content', '<p>사유</p>',
       ]));
 
       expect(value).toBe(0);
@@ -557,25 +574,25 @@ describe('approval form and draft cli', () => {
       expect(forbidden).toEqual([]);
 
       // The department is resolved from the org chart, not guessed.
-      expect(output).toContain('기안부서: 159');
+      expect(output).toContain('기안부서: 3');
       expect(output).toContain('임시저장 완료');
       expect(output).toContain('상신은 하지 않았습니다');
 
       // Overrides land on the document, and untouched form data survives.
-      expect(tempsaveBody.document.title).toBe('8월 연차');
+      expect(tempsaveBody.document.title).toBe('휴가 신청');
       expect(tempsaveBody.document.docBodyContent).toBe('<p>사유</p>');
       expect(tempsaveBody.document.variables.restPoint).toBe('7.0');
-      expect(tempsaveBody.apprFlow.currentActivityId).toBe(264371);
+      expect(tempsaveBody.apprFlow.currentActivityId).toBe(1001);
 
       // docInfo must be collapsed the way the web client sends it, otherwise the
       // document saves but never appears in the 임시문서함.
       expect(tempsaveBody.docInfo).toEqual({
-        id: 93191,
-        securityLevelId: '22',
+        id: 901,
+        securityLevelId: '1',
         docYear: '5',
-        docFolders: [{ id: '12' }],
+        docFolders: [{ id: '2' }],
         docReceptionReaders: [],
-        docReferenceReaders: [{ id: 168079, readerType: '참조문서' }],
+        docReferenceReaders: [{ id: 99, readerType: '참조문서' }],
         docReadingReaders: [],
         officialVersions: [{ state: 'CREATE' }],
         isPublic: 'false',
@@ -593,8 +610,8 @@ describe('approval form and draft cli', () => {
     const boxResponse = (_req: IncomingMessage, res: ServerResponse) => json(res, {
       page: { total: 82 },
       data: [{
-        id: 92777, documentId: 92777, title: '연차신청', formName: '연차신청',
-        docStatusName: '완료', drafterName: '나상권', draftedAt: '2026-08-06T13:19:08.079+09:00',
+        id: 902, documentId: 902, title: '휴가신청', formName: '휴가신청',
+        docStatusName: '완료', drafterName: '사용자A', draftedAt: '2026-08-06T13:19:08.079+09:00',
       }],
     });
 
@@ -618,7 +635,7 @@ describe('approval form and draft cli', () => {
       expect(drafted.output).toContain('기안문서');
       expect(drafted.output).toContain('- 전체: 82건 / 표시: 1건');
       expect(drafted.output).toContain('[완료]');
-      expect(drafted.output).toContain('나상권');
+      expect(drafted.output).toContain('사용자A');
 
       const temp = await captureStdout(() => runCli(['approval', 'box', '--kind', 'tempsave']));
       expect(temp.output).toContain('임시문서');
@@ -662,7 +679,7 @@ describe('approval form and draft cli', () => {
     try {
       await saveConfig({ base_url: server.baseUrl });
       await saveSession({ user_id: SESSION_USER.id, cookies: COOKIE });
-      const { value } = await captureStdout(() => runCli(['approval', 'draft', '--form-id', '4791', '--dept-id', '159']));
+      const { value } = await captureStdout(() => runCli(['approval', 'draft', '--form-id', '102', '--dept-id', '3']));
       expect(value).toBe(0);
       expect(tempsaveBody.document.docBodyContent).toBe('<p>template</p>');
       expect(tempsaveBody.document.title).toBe('지각확인서');
@@ -763,105 +780,13 @@ describe('calendar summary cli', () => {
 });
 
 describe('attendance cli', () => {
-  const attendanceRoutes = (extra: Record<string, (req: IncomingMessage, res: ServerResponse) => void> = {}, events: unknown[] = []) => routes({
-    '/api/user/session': sessionRoute,
-    '/api/calendar/user/7/calendar': (_req, res) => json(res, { data: [{ id: 7, name: '회사 일정' }] }),
-    '/api/calendar/event': (_req, res) => json(res, { data: events }),
-    '/api/ehr/timeline/month': (_req, res) => json(res, {
-      weekList: [{ dailyList: [{ detailDay: { day: todayKst() }, clockInHistory: {}, clockOutHistory: null }] }],
-    }),
-    ...extra,
-  });
-
-  it('shows the current state', async () => {
-    await useTempHome();
-    const server = await startServer(attendanceRoutes());
-
-    try {
-      await saveConfig({ base_url: server.baseUrl });
-      await saveSession({ user_id: SESSION_USER.id, cookies: COOKIE });
-      const { value, output } = await captureStdout(() => runCli(['--attend', 'attend', 'status']));
-      expect(value).toBe(0);
-      expect(output).toContain('근태 상태');
-      expect(output).toContain('출근: 완료');
-      expect(output).toContain('퇴근: 미처리');
-    } finally {
-      await server.close();
-    }
-  });
-
-  it('refuses attendance commands while the switch is off', async () => {
-    await useTempHome();
-    const { value } = await captureStdout(() => runCli(['attend', 'status']));
-    expect(value).toBe(1);
-  });
-
-  it('clocks in when nothing blocks it', async () => {
-    await useTempHome();
-    let clockedIn = false;
-    const server = await startServer(routes({
-      '/api/user/session': sessionRoute,
-      '/api/calendar/user/7/calendar': (_req, res) => json(res, { data: [{ id: 7, name: '회사 일정' }] }),
-      '/api/calendar/event': (_req, res) => json(res, { data: [] }),
-      '/api/ehr/timeline/month': (_req, res) => json(res, {
-        weekList: [{ dailyList: [{ detailDay: { day: todayKst() }, clockInHistory: null, clockOutHistory: null }] }],
-      }),
-      '/api/ehr/timeline/status/clockIn': (_req, res) => {
-        clockedIn = true;
-        json(res, { code: 200 });
-      },
-    }));
-
-    try {
-      await saveConfig({ base_url: server.baseUrl, attend: true });
-      await saveSession({ user_id: SESSION_USER.id, cookies: COOKIE });
-      const { value, output } = await captureStdout(() => runCli(['attend', 'in']));
-
-      // A weekend or public holiday legitimately blocks the call.
-      if (output.includes('건너뜀')) {
-        expect(clockedIn).toBe(false);
-      } else {
-        expect(value).toBe(0);
-        expect(clockedIn).toBe(true);
-        expect(output).toContain('출근 처리 완료');
-      }
-    } finally {
-      await server.close();
-    }
-  });
-
-  it('skips clocking in when the calendar shows leave', async () => {
-    await useTempHome();
-    let clockedIn = false;
-    const server = await startServer(attendanceRoutes(
-      {
-        '/api/ehr/timeline/status/clockIn': (_req, res) => {
-          clockedIn = true;
-          json(res, {}, 500);
-        },
-      },
-      [{ id: 99, calendarId: 7, title: '오전반차', startTime: `${todayKst()}T00:00:00.000+09:00` }],
-    ));
-
-    try {
-      await saveConfig({ base_url: server.baseUrl, attend: true });
-      await saveSession({ user_id: SESSION_USER.id, cookies: COOKIE });
-      const { value, output } = await captureStdout(() => runCli(['attend', 'in']));
-      expect(value).toBe(0);
-      expect(clockedIn).toBe(false);
-      expect(output).toContain('건너뜀: 오전반차 일정 있음');
-    } finally {
-      await server.close();
-    }
-  });
-
   it('shows the monthly attendance sheet', async () => {
     await useTempHome();
     const server = await startServer(routes({
       '/api/user/session': sessionRoute,
       '/api/ehr/timeline/month': (_req, res) => json(res, {
         yyyymm: '202605',
-        user: { name: '나상권' },
+        user: { name: '테스트사용자' },
         workingTime: { normalStr: '160h 0m 0s', extensionStr: '4h 0m 0s', nightStr: '0h 0m 0s', totalStr: '164h 0m 0s' },
         weekList: [{
           dailyList: [
@@ -891,13 +816,13 @@ describe('attendance cli', () => {
     }));
 
     try {
-      await saveConfig({ base_url: server.baseUrl, attend: true });
+      await saveConfig({ base_url: server.baseUrl });
       await saveSession({ user_id: SESSION_USER.id, cookies: COOKIE });
       const { value, output } = await captureStdout(() => runCli(['attend', 'history', '--month', '2026-05']));
 
       expect(value).toBe(0);
       expect(output).toContain('근태 현황 202605');
-      expect(output).toContain('대상: 나상권');
+      expect(output).toContain('대상: 테스트사용자');
       expect(output).toContain('근무일수: 2일');
       expect(output).toContain('지각 1');
       // The future day is flagged absent by the API but must not be counted.
@@ -913,27 +838,10 @@ describe('attendance cli', () => {
     }
   });
 
-  it('hides the attendance sheet while the switch is off', async () => {
+  it('never exposes clock action commands', async () => {
     await useTempHome();
-    const { value } = await captureStdout(() => runCli(['attend', 'history']));
-    expect(value).toBe(1);
-  });
-
-  it('does not treat a holiday calendar entry as leave', async () => {
-    await useTempHome();
-    const server = await startServer(attendanceRoutes(
-      {},
-      [{ id: 100, calendarId: 7, type: 'holiday', timeType: 'allday', title: '석가탄신일', startTime: `${todayKst()}T00:00:00.000+09:00` }],
-    ));
-
-    try {
-      await saveConfig({ base_url: server.baseUrl, attend: true });
-      await saveSession({ user_id: SESSION_USER.id, cookies: COOKIE });
-      const { output } = await captureStdout(() => runCli(['attend', 'status']));
-      expect(output).not.toContain('일정 내용: 석가탄신일');
-      expect(output).not.toContain('근무구분: 연차');
-    } finally {
-      await server.close();
-    }
+    expect((await captureStdout(() => runCli(['attend', 'status']))).value).toBe(1);
+    expect((await captureStdout(() => runCli(['attend', 'in']))).value).toBe(1);
+    expect((await captureStdout(() => runCli(['attend', 'out']))).value).toBe(1);
   });
 });

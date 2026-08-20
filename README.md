@@ -9,8 +9,7 @@
 ![Node](https://img.shields.io/badge/node-%E2%89%A5%2020-339933?logo=node.js&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)
 ![MCP](https://img.shields.io/badge/MCP-stdio-6E56CF)
-![Tools](https://img.shields.io/badge/tools-28-0EA5E9)
-![Tests](https://img.shields.io/badge/tests-58%20passing-22C55E)
+![Tools](https://img.shields.io/badge/tools-25-0EA5E9)
 
 </div>
 
@@ -25,11 +24,11 @@
 |:--:|---|---|
 | 📧 | 메일 목록·검색·삭제·발송 | `mail search --query AWS` |
 | 📋 | 전자결재 조회 · 문서함 7종 | `approval box --kind tempsave` |
-| ✍️ | 결재 양식 검색 · 문서 임시저장 | `approval draft --form-id 5374` |
+| ✍️ | 결재 양식 검색 · 문서 임시저장 | `approval draft --form-id <id>` |
 | 📅 | 캘린더 조회 · 기간별 요약 | `calendar summary --range week` |
-| 🏢 | 조직도 · 직원 검색 (로컬 캐시) | `org search --query 개발3파트` |
+| 🏢 | 조직도 · 직원 검색 (로컬 캐시) | `org search --query 플랫폼팀` |
 | 📌 | 게시판 작성·수정·첨부 | `board create --board-id 1 ...` |
-| 🕘 | 근태 출퇴근 · 월간 현황 *(선택 노출)* | `attend history` |
+| 🕘 | 월간 근태 현황 조회 | `attend history` |
 | 🔌 | MCP 서버 (stdio) | `daou-gw-mcp` |
 
 <br>
@@ -50,18 +49,15 @@
 ## 설치
 
 ```bash
-npm install
-npm run build
-```
-
-에이전트 환경(Codex · Claude Code · Hermes · OpenClaw · 기타)에 한 번에 설치:
-
-```bash
-bash scripts/install-agent.sh
+npm install -g daou-gw-cli
 ```
 
 에이전트별 지침 경로, 스킬 설치 위치, MCP 등록 명령은
 **[에이전트 설치 가이드](docs/agent-setup.md)**를 참고하세요.
+
+저장소를 직접 내려받아 에이전트 설정까지 자동 적용하려면:
+
+저장소 루트에서 `bash scripts/install-agent.sh`를 실행하세요.
 
 설치 확인:
 
@@ -118,7 +114,7 @@ daou-gw-cli approval reference [--kind reference|read|view]
 daou-gw-cli approval count
 daou-gw-cli approval box       [--kind <문서함>] [--page 1] [--size 20] [--keyword <text>]
 daou-gw-cli approval document  --document-id <id>
-daou-gw-cli leavecount
+daou-gw-cli leavecount [--form-id <id>] [--dept-id <id>]
 ```
 
 `approval box`는 그룹웨어 문서함을 그대로 엽니다.
@@ -132,16 +128,18 @@ daou-gw-cli leavecount
 
 함마다 정렬 기준이 다르며 CLI가 알아서 맞춥니다. 수신·임시 문서함은 날짜 범위 필터를 지원하지 않습니다.
 `leavecount`는 사용/잔여/추가/총 연차를 출력합니다.
+양식 id는 `approval form-search`로 찾은 뒤 `DAOU_LEAVE_FORM_ID`에 저장합니다.
+부서 id는 자동 탐색하며, 필요하면 `DAOU_LEAVE_DEPT_ID`로 지정합니다.
 
 ### ✍️ 전자결재 작성
 
 ```bash
 # 1) 양식 찾기
-daou-gw-cli approval form-search --query 연차
-#    2. 근태 > 연차신청-연차관리연동 (form 5374)
+daou-gw-cli approval form-search --query 휴가
+#    결과에서 사용할 양식 id 확인
 
 # 2) 임시저장 문서 만들기
-daou-gw-cli approval draft --form-id 5374 --title "8월 연차"
+daou-gw-cli approval draft --form-id <id> --title "휴가 신청"
 
 # 3) 임시문서함에서 확인
 daou-gw-cli approval box --kind tempsave
@@ -175,12 +173,10 @@ daou-gw-cli org search [--query <text>] [--limit 20] [--refresh]
 
 ```
 조직도
-+ 이지스엔터프라이즈 (#10)
-  + 대표이사 (#204)
-    + 사장 (#206)
-      + IT본부 (#80)
-        + ERP개발팀 (#81)
-          + 개발3파트 (#159)
++ 예시회사 (#1)
+  + 기술본부 (#2)
+    + 플랫폼팀 (#3)
+      + 개발파트 (#4)
 ```
 
 - `search`는 이름·부서·직위·이메일·사번·전화번호를 한 번에 훑습니다.
@@ -204,22 +200,12 @@ Windows 경로(`C:\...`)도 그대로 씁니다. 이미지는 인라인으로, �
 
 ### 🕘 근태
 
-> [!WARNING]
-> 근태 기능은 **기본적으로 숨겨져 있습니다.** 켜야 CLI 명령과 MCP 툴 목록에 나타납니다.
-
 ```bash
-daou-gw-cli config set --attend          # 켜기
-daou-gw-cli config set --attend false    # 끄기
-
-daou-gw-cli attend status
-daou-gw-cli attend in
-daou-gw-cli attend out
 daou-gw-cli attend history [--month YYYY-MM]
 ```
 
-- `history`는 월간 근태표입니다. 일자별 출퇴근 시각·근무시간, 지각·조퇴·결근·휴일 집계, 월 합계를 보여줍니다. 아직 오지 않은 날짜는 집계에서 제외합니다.
-- 연차·반차 일정이 캘린더에 있거나 휴일이면 출퇴근 호출을 스스로 건너뜁니다.
-- 일회성 노출은 맨 앞에 `--attend`: `daou-gw-cli --attend attend status`
+월간 근태표에서 일자별 출퇴근 시각·근무시간, 지각·조퇴·결근·휴일 집계, 월 합계를 보여줍니다.
+아직 오지 않은 날짜는 집계에서 제외합니다. 출퇴근 처리 명령은 제공하지 않습니다.
 
 <br>
 
@@ -232,7 +218,7 @@ daou-gw-mcp
 stdio 트랜스포트로 동작합니다. 각 툴의 `inputSchema`는 CLI 플래그와 **같은 정의에서 생성**되므로 두 표면이 어긋나지 않습니다.
 
 <details>
-<summary><b>제공 툴 28개</b></summary>
+<summary><b>제공 툴 25개</b></summary>
 
 <br>
 
@@ -245,9 +231,7 @@ stdio 트랜스포트로 동작합니다. 각 툴의 `inputSchema`는 CLI 플래
 | 결재 작성 | `approval_form_tree` `approval_form_search` `approval_draft_create` |
 | 게시판 | `board_post_create` `board_post_update` `board_post_attach` |
 | 조직 | `org_tree` `org_search` |
-| 근태 *(선택)* | `attend_status` `attend_in` `attend_out` `attend_history` |
-
-근태 툴은 `attend` 설정이 꺼져 있으면 목록에 나오지 않고, 호출해도 `unknown tool`입니다.
+| 근태 조회 | `attend_history` |
 
 </details>
 
@@ -274,7 +258,8 @@ stdio 트랜스포트로 동작합니다. 각 툴의 `inputSchema`는 CLI 플래
 | `DAOU_BASE_URL` | `base_url` |
 | `DAOU_USERNAME` | `username` |
 | `DAOU_PASSWORD` | `password` |
-| `DAOU_ATTEND` | `attend` (근태 기능 노출) |
+| `DAOU_LEAVE_FORM_ID` | `leave_form_id` |
+| `DAOU_LEAVE_DEPT_ID` | `leave_dept_id` |
 | `DAOU_MAIL_LIST_URL` | `mail_list_url` |
 | `DAOU_MAIL_SEARCH_URL` | `mail_search_url` |
 | `DAOU_MAIL_DELETE_URL` | `mail_delete_url` |

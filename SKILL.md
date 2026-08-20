@@ -1,9 +1,8 @@
 ---
 name: daou-gw
-description: Daou GW 작업은 daou-gw-cli 또는 daou-gw-mcp로만 처리. 로그인, 세션, 근태, 메일, 캘린더, 전자결재, 게시판.
+description: Daou GW 작업은 daou-gw-cli 또는 daou-gw-mcp로만 처리. 로그인, 세션, 근태현황, 메일, 캘린더, 전자결재, 게시판.
 version: 4.0.0
-author: Hermes Agent
-license: MIT
+license: UNLICENSED
 metadata:
   hermes:
     tags: [groupware, gw, daou-office, approval, attendance, mail, calendar, cli, mcp]
@@ -18,13 +17,10 @@ metadata:
 
 | 작업 | CLI | JSON data path |
 |------|-----|----------------|
-| 근태상태 | `attend status` | leave, clockedIn, clockedOut |
 | 근태현황 | `attend history [--month YYYY-MM]` | days[], totals, counts |
 | 조직도 | `org tree` | 트리 |
 | 직원검색 | `org search --query <q> [--refresh]` | employees[] |
 | 일정요약 | `calendar summary [--range today\|day\|week\|month] [--date YYYY-MM-DD]` | data[] |
-| 출근 | `attend in` | status: done/already/skip |
-| 퇴근 | `attend out` | status: done/already/skip |
 | 메일목록 | `mail list --size N` | data.messageList[] |
 | 메일검색 | `mail search --query <q> --size N` | data.messageList[] |
 | 메일삭제 | `mail delete --id X [--id Y ...]` | – |
@@ -33,7 +29,7 @@ metadata:
 | 결재할일 | `approval todo [--size N]` | data[] |
 | 결재참조 | `approval reference [--size N]` | data[] |
 | 결재건수 | `approval count` | count |
-| 연차 | `leavecount` | 사용/잔여/추가/총연차 |
+| 연차 | `leavecount [--form-id <id>] [--dept-id <id>]` | 사용/잔여/추가/총연차 |
 | 양식검색 | `approval form-search --query <q>` | form id |
 | 양식목록 | `approval forms` | 폴더/양식 트리 |
 | 결재작성 | `approval draft --form-id <id> [--title <t>] [--content <html>]` | 임시저장 문서 id |
@@ -46,14 +42,13 @@ metadata:
 **주의**:
 - approval은 `list`가 아님. `todo`/`reference`/`count`만 있음.
 - calendar는 `--date`가 없음. `--from-date` / `--to-date`를 쓸 것. 생략하면 오늘부터 7일.
-- 근태 명령은 `attend` 설정이 켜져 있을 때만 존재. 없으면 `config set --attend`로 켤 것.
 
 플래그가 기억나지 않으면 추측하지 말고 `daou-gw-cli <명령> --help`로 확인. 도움말은 실제 스키마에서 생성되므로 항상 정확함.
 
 ## 근태
 
-즉시 실행. 선확인 전면 금지. 연차/반차/휴일이면 CLI가 스스로 `건너뜀`을 반환하므로 사전 캘린더 조회 불필요.
-월 단위 확인은 `attend history`. 미래 날짜는 집계에서 자동 제외되므로 결근 수치를 그대로 신뢰해도 됨.
+월 단위 조회는 `attend history`. 미래 날짜는 집계에서 자동 제외됨.
+출퇴근 상태 확인 및 출근·퇴근 처리 명령은 제공하지 않음.
 
 ## 전자결재 작성
 
@@ -85,4 +80,4 @@ metadata:
 ## MCP
 
 `daou-gw-mcp` (stdio). 툴 이름은 CLI 명령과 1:1 대응하며 `_`로 연결됨: `mail_list`, `approval_leave_count`, `board_post_create` 등.
-근태 툴(`attend_status`/`attend_in`/`attend_out`)은 `attend` 설정이 꺼져 있으면 목록에 없고 호출 시 `unknown tool`.
+근태 MCP 툴은 읽기 전용 `attend_history`만 제공.

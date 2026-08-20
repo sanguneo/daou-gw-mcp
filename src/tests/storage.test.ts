@@ -48,11 +48,6 @@ describe('storage', () => {
     expect(await fs.readFile(configFile, 'utf8')).not.toContain('plain');
   });
 
-  it('keeps the attendance switch', async () => {
-    await useTempHome();
-    await saveConfig({ attend: true });
-    expect((await loadConfig()).attend).toBe(true);
-  });
 });
 
 describe('environment fallbacks', () => {
@@ -60,12 +55,14 @@ describe('environment fallbacks', () => {
     await useTempHome();
     vi.stubEnv('DAOU_BASE_URL', 'http://from-env.example.com');
     vi.stubEnv('DAOU_MAIL_SENDER_EMAIL', 'env@example.com');
-    vi.stubEnv('DAOU_ATTEND', 'true');
+    vi.stubEnv('DAOU_LEAVE_FORM_ID', '101');
+    vi.stubEnv('DAOU_LEAVE_DEPT_ID', '3');
 
     const cfg = await loadConfig();
     expect(cfg.base_url).toBe('http://from-env.example.com');
     expect(cfg.mail_sender_email).toBe('env@example.com');
-    expect(cfg.attend).toBe(true);
+    expect(cfg.leave_form_id).toBe('101');
+    expect(cfg.leave_dept_id).toBe('3');
   });
 
   it('lets a saved value win over the environment', async () => {
@@ -74,11 +71,5 @@ describe('environment fallbacks', () => {
     vi.stubEnv('DAOU_BASE_URL', 'http://from-env.example.com');
 
     expect((await loadConfig()).base_url).toBe('http://saved.example.com');
-  });
-
-  it('ignores an unparseable boolean variable', async () => {
-    await useTempHome();
-    vi.stubEnv('DAOU_ATTEND', 'maybe');
-    expect((await loadConfig()).attend).toBeUndefined();
   });
 });

@@ -11,9 +11,6 @@ This tool is installed globally as `daou-gw-cli`. All commands support `--json` 
 | Goal | Command |
 |------|---------|
 | Session check | `daou-gw-cli session` |
-| Attend status | `daou-gw-cli attend status` |
-| Clock in | `daou-gw-cli attend in` |
-| Clock out | `daou-gw-cli attend out` |
 | Today's calendar | `daou-gw-cli calendar list --from-date $(date +%F) --to-date $(date +%F)` |
 | Calendar digest | `daou-gw-cli calendar summary --range today\|day\|week\|month [--date YYYY-MM-DD]` |
 | Org chart | `daou-gw-cli org tree` |
@@ -26,7 +23,7 @@ This tool is installed globally as `daou-gw-cli`. All commands support `--json` 
 | Approval todo | `daou-gw-cli approval todo --size 10` |
 | Approval ref | `daou-gw-cli approval reference --size 10` |
 | Approval count | `daou-gw-cli approval count` |
-| Annual leave | `daou-gw-cli leavecount` |
+| Annual leave | `DAOU_LEAVE_FORM_ID=<id> daou-gw-cli leavecount` |
 | Find a form | `daou-gw-cli approval form-search --query <text>` |
 | Draft a document | `daou-gw-cli approval draft --form-id <id> [--title <t>]` (saves to 임시저장, never submits) |
 | Read a document | `daou-gw-cli approval document --document-id <id>` |
@@ -38,16 +35,7 @@ This tool is installed globally as `daou-gw-cli`. All commands support `--json` 
 
 Never guess a flag. `daou-gw-cli <command> --help` is generated from the real schema.
 
-### Attendance is opt-in
-
-`attend` commands and the `attend_*` MCP tools only exist when the feature is enabled:
-
-```bash
-daou-gw-cli config set --attend         # enable
-daou-gw-cli config set --attend false   # disable
-```
-
-Leave, half-day leave and holidays make the clock in/out calls skip themselves, so no pre-check is needed.
+Only the read-only monthly attendance sheet is exposed. Clock status/in/out commands are intentionally unavailable.
 
 ### Board posts with images
 

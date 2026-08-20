@@ -5,6 +5,7 @@ import { authOperations } from './auth.js';
 import { boardOperations } from './board.js';
 import { calendarOperations } from './calendar.js';
 import { configOperations } from './config.js';
+import { leaveOperations } from './leave.js';
 import { mailOperations } from './mail.js';
 import { orgOperations } from './org.js';
 
@@ -20,6 +21,7 @@ export const OPERATIONS: Operation[] = [
   ...attendanceOperations,
   ...mailOperations,
   ...calendarOperations,
+  ...leaveOperations,
   ...approvalOperations,
   ...boardOperations,
   ...orgOperations,
