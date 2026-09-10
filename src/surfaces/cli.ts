@@ -142,20 +142,28 @@ function buildProgram(ops: Operation[], exitCode: { value: number }): Command {
     .enablePositionalOptions();
 
   const groups = new Map<string, Command>();
+  /** Heads that own subcommands, so `session` is both a group and a command. */
+  const groupHeads = new Set(ops.filter((op) => op.cli.length > 1).map((op) => op.cli[0]));
+
+  function group(head: string): Command {
+    let existing = groups.get(head);
+    if (!existing) {
+      existing = program.command(head).description(`${head} commands`).enablePositionalOptions();
+      groups.set(head, existing);
+    }
+    return existing;
+  }
 
   for (const op of ops) {
     const [head, ...rest] = op.cli;
-    let parent = program;
-    if (rest.length > 0) {
-      let group = groups.get(head);
-      if (!group) {
-        group = program.command(head).description(`${head} commands`).enablePositionalOptions();
-        groups.set(head, group);
-      }
-      parent = group;
-    }
 
-    const command = parent.command(rest.length > 0 ? rest.join(' ') : head).description(op.summary);
+    // A single-segment op whose name is also a group runs as that group's own action.
+    const command =
+      rest.length > 0
+        ? group(head).command(rest.join(' ')).description(op.summary)
+        : groupHeads.has(head)
+          ? group(head).description(op.summary)
+          : program.command(head).description(op.summary);
     command.option('--json', 'Print the raw JSON payload');
     const options = attachOptions(command, op);
     command.action(async (opts: Record<string, unknown>) => {

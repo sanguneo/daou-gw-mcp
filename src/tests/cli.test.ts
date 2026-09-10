@@ -282,7 +282,7 @@ describe('cli surface', () => {
     }
   });
 
-  it('re-authenticates when the saved session is stale', async () => {
+  it('re-authenticates when the saved session is stale and auto_login is on', async () => {
     await useTempHome();
     let loginCalled = false;
     const server = await startServer(routes({
@@ -299,7 +299,7 @@ describe('cli surface', () => {
     }));
 
     try {
-      await saveConfig({ base_url: server.baseUrl, username: 'tester', password: 'secret' });
+      await saveConfig({ base_url: server.baseUrl, username: 'tester', password: 'secret', auto_login: true });
       await saveSession({ cookies: [{ name: 'sid', value: 'stale', path: '/' }] });
 
       const { value } = await captureStdout(() => runCli(['approval', 'count']));

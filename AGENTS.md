@@ -11,6 +11,8 @@ This tool is installed globally as `daou-gw-cli`. All commands support `--json` 
 | Goal | Command |
 |------|---------|
 | Session check | `daou-gw-cli session` |
+| Borrow a live session | `daou-gw-cli session adopt [--token <GOSSOcookie>]` |
+| Hand the session to a browser | `daou-gw-cli session handoff` |
 | Today's calendar | `daou-gw-cli calendar list --from-date $(date +%F) --to-date $(date +%F)` |
 | Calendar digest | `daou-gw-cli calendar summary --range today\|day\|week\|month [--date YYYY-MM-DD]` |
 | Org chart | `daou-gw-cli org tree` |
@@ -50,13 +52,23 @@ The CLI auto-uploads to `/api/file` and replaces the src. Windows paths (`C:\...
 ### Configuration & session
 
 - Config: `~/.daou/config.json` (`base_url`, `username`, encrypted `password`)
-- Session: `~/.daou/session.json` (auto-refreshed on expiry)
+- Session: `~/.daou/session.json` (a stale session is replaced by borrowing a live one, never by logging in)
 - Login: `daou-gw-cli login --username <id>`
 - Any config field also reads a `DAOU_*` environment variable as a fallback; saved config wins.
 
 ### Session persistence
 
-The CLI caches cookies in `~/.daou/session.json`. If a command fails due to a stale session, it re-authenticates with the saved credentials and retries once. No manual re-login is needed for routine use.
+The groupware keeps **one live session per user**: `POST /api/login` mints a new `GOSSOcookie` SSO token and invalidates every earlier token, regardless of User-Agent or device headers. A login from this tool therefore logs the user out of their browser, Electron messenger and phone app.
+
+The SSO cookie is portable, so a stale session is repaired by *borrowing* the token another client already holds, in this order:
+
+1. `~/.daou/session.json` (still valid → used as is)
+2. `DAOU_SSO_TOKEN`, then the Electron messenger store (`%APPDATA%/aegisepMessenger/config.json`, override with `messenger_config_path` / `DAOU_MESSENGER_CONFIG`)
+3. nothing usable → the command fails with instructions; it never logs in on its own
+
+Password re-login is opt-in via `auto_login` (`daou-gw-cli config set --auto-login`, env `DAOU_AUTO_LOGIN`) or the explicit `login` command, both of which log other clients out.
+
+`daou-gw-cli session handoff` prints a `/tokenlogin?token=...` URL that logs a browser back in with the current session; the token is single-use, so the CLI then needs `session adopt` again.
 
 ## For contributors
 

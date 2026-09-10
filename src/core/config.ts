@@ -34,6 +34,8 @@ export const CONFIG_FIELDS: ConfigFieldSpec[] = [
   { key: 'board_update_url', type: 'string', env: 'DAOU_BOARD_UPDATE_URL', describe: 'Override board update endpoint' },
   { key: 'board_attach_url', type: 'string', env: 'DAOU_BOARD_ATTACH_URL', describe: 'Override board attach endpoint' },
   { key: 'board_image_upload_url', type: 'string', env: 'DAOU_BOARD_IMAGE_UPLOAD_URL', describe: 'Override board image upload endpoint' },
+  { key: 'auto_login', type: 'boolean', env: 'DAOU_AUTO_LOGIN', describe: 'Re-login with the saved password when no live session can be borrowed (logs other clients out)' },
+  { key: 'messenger_config_path', type: 'string', env: 'DAOU_MESSENGER_CONFIG', describe: 'Electron messenger config.json used to borrow a live session token' },
 ];
 
 /** Input schema shared by `config set` (CLI) and `config_set` (MCP). */

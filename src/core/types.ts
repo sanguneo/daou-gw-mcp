@@ -20,6 +20,14 @@ export interface Config {
   board_update_url?: string;
   board_attach_url?: string;
   board_image_upload_url?: string;
+  /**
+   * Allow an expired session to be refreshed with the saved password.
+   * The groupware keeps a single session per user, so a password login logs
+   * every other client (browser, messenger, phone) out. Off by default.
+   */
+  auto_login?: boolean;
+  /** Electron messenger store used to borrow a live SSO token. */
+  messenger_config_path?: string;
   saved_at?: string;
 }
 

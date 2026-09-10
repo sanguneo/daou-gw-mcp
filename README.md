@@ -82,8 +82,24 @@ daou-gw-cli login --username <아이디> --password <비밀번호>
 daou-gw-cli session
 ```
 
-> [!TIP]
-> 세션이 만료되면 저장된 자격 증명으로 **자동 재로그인 후 1회 재시도**합니다. 평소 사용에서 재로그인은 필요 없습니다.
+> [!IMPORTANT]
+> 그룹웨어는 **사용자당 세션 1개**만 유지합니다. `/api/login`은 새 SSO 토큰을 발급하면서 이전 토큰을 모두 무효화하므로, 이 CLI가 로그인하면 브라우저 · 메신저 · 휴대폰이 전부 로그아웃됩니다. User-Agent나 디바이스 헤더를 바꿔도 마찬가지입니다.
+>
+> 그래서 세션이 만료되면 CLI는 **다시 로그인하지 않고, 이미 살아있는 세션을 빌려옵니다.**
+>
+> ```bash
+> # 이 PC의 메신저(aegisepMessenger) 세션을 자동으로 빌려오기
+> daou-gw-cli session adopt
+>
+> # 브라우저 개발자도구 > Application > Cookies의 GOSSOcookie 값을 직접 넘기기
+> daou-gw-cli session adopt --token <GOSSOcookie>
+>
+> # (원한다면) 로그아웃을 감수하고 자동 재로그인 허용
+> daou-gw-cli config set --auto-login
+> ```
+>
+> 빌려온 세션은 같은 토큰을 함께 쓰는 것이라 다른 클라이언트는 로그인 상태를 유지합니다.
+> 반대로 CLI가 로그인해서 브라우저가 튕겼다면 `daou-gw-cli session handoff`가 출력하는 주소를 브라우저에서 열어 세션을 되돌릴 수 있습니다(토큰은 1회용이라 그 뒤 CLI는 다시 `session adopt`가 필요합니다).
 
 <br>
 
@@ -224,7 +240,7 @@ stdio 트랜스포트로 동작합니다. 각 툴의 `inputSchema`는 CLI 플래
 
 | 도메인 | 툴 |
 |---|---|
-| 설정·인증 | `config_show` `config_set` `login` `session` |
+| 설정·인증 | `config_show` `config_set` `login` `session` `session_adopt` `session_handoff` |
 | 메일 | `mail_list` `mail_search` `mail_delete` `mail_send` |
 | 캘린더 | `calendar_list` `calendar_summary` |
 | 전자결재 | `approval_todo` `approval_reference` `approval_count` `approval_leave_count` `approval_box` `approval_document` |
@@ -308,7 +324,7 @@ export const mailList = defineOperation({
     folder: z.string().optional().describe('Mail folder'),
     size: z.number().int().min(1).default(20).describe('Items per page'),
   }),
-  auth: true,                   // 세션 필요 (만료 시 자동 재로그인)
+  auth: true,                   // 세션 필요 (만료 시 살아있는 세션을 빌려옴)
   run: async (ctx, input) => ({ data, text }),
 });
 ```

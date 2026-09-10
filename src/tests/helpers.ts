@@ -13,6 +13,9 @@ export async function useTempHome(): Promise<string> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'daou-gw-'));
   vi.stubEnv('HOME', dir);
   vi.stubEnv('USERPROFILE', dir);
+  // Keep a real messenger install on the developer's machine out of reach.
+  vi.stubEnv('APPDATA', path.join(dir, 'AppData', 'Roaming'));
+  vi.stubEnv('DAOU_SSO_TOKEN', '');
   for (const field of CONFIG_FIELDS) vi.stubEnv(field.env, '');
   return dir;
 }

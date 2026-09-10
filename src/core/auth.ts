@@ -33,6 +33,34 @@ export async function login(baseUrl: string, username: string, password: string)
   };
 }
 
+/** Cookie carrying the groupware SSO session; every client shares one value. */
+export const SSO_COOKIE = 'GOSSOcookie';
+
+/**
+ * Build a session from an SSO token issued to another client.
+ *
+ * The groupware allows a single live session per user, so borrowing the token
+ * a browser or the messenger already holds is the only way to work without
+ * logging that client out. Throws when the token is not (or no longer) live.
+ */
+export async function sessionFromToken(baseUrl: string, token: string, username?: string): Promise<Session> {
+  const root = ensureBaseUrl(baseUrl);
+  const value = token.trim();
+  if (!value) throw new Error('sso token required');
+  const candidate: Session = {
+    username,
+    base_url: root,
+    cookies: [{ name: SSO_COOKIE, value, path: '/' }],
+  };
+  const info = await userSession(root, candidate);
+  return { ...candidate, user_id: info.id, last_check: new Date().toISOString() };
+}
+
+/** SSO token carried by a saved session, when it has one. */
+export function tokenFromSession(session: Session): string | undefined {
+  return session.cookies?.find((cookie) => cookie.name === SSO_COOKIE)?.value;
+}
+
 export async function userSession(baseUrl: string, session: Session): Promise<UserSessionInfo> {
   const { status, data } = await requestJson<{ data?: { id?: number; name?: string } }>(
     `${ensureBaseUrl(baseUrl)}/api/user/session`,
