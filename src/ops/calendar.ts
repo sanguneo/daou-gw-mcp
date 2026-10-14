@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { clampEventsToRange, fetchCalendarEvents } from '../api/calendar.js';
+import { clampEventsToRange, fetchCalendarEvents, upcomingEvents } from '../api/calendar.js';
 import { defineOperation } from '../core/registry.js';
-import { monthRangeKst, todayKst, weekRangeKst } from '../core/time.js';
-import { formatCalendar, formatCalendarSummary } from '../render/calendar.js';
+import { addDaysKst, monthRangeKst, todayKst, weekRangeKst } from '../core/time.js';
+import { formatCalendar, formatCalendarSummary, formatUpcoming } from '../render/calendar.js';
 
 export const calendarList = defineOperation({
   id: 'calendar.list',
@@ -16,13 +16,13 @@ export const calendarList = defineOperation({
   }),
   auth: true,
   run: async (ctx, input) => {
-    const bundle = await fetchCalendarEvents(
+    const bundle = clampEventsToRange(await fetchCalendarEvents(
       ctx.baseUrl(),
       ctx.session,
       input.calendar_id,
       input.from_date || undefined,
       input.to_date || undefined,
-    );
+    ));
     return { data: bundle, text: formatCalendar(bundle) };
   },
 });
@@ -62,4 +62,25 @@ export const calendarSummary = defineOperation({
   },
 });
 
-export const calendarOperations = [calendarList, calendarSummary];
+export const calendarUpcoming = defineOperation({
+  id: 'calendar.upcoming',
+  tool: 'calendar_upcoming',
+  cli: ['calendar', 'upcoming'],
+  summary: 'Timed events starting within the next N minutes (for reminders)',
+  input: z.strictObject({
+    within: z.number().int().min(1).default(60).describe('Look-ahead window in minutes'),
+    calendar_id: z.string().optional().describe('Calendar id, or several separated by commas'),
+  }),
+  auth: true,
+  run: async (ctx, input) => {
+    const now = new Date();
+    const until = new Date(now.getTime() + input.within * 60_000);
+    const from = todayKst(now);
+    const to = todayKst(until) > from ? addDaysKst(from, 1) : from;
+    const bundle = await fetchCalendarEvents(ctx.baseUrl(), ctx.session, input.calendar_id, from, to);
+    const upcoming = upcomingEvents(bundle, now, until);
+    return { data: upcoming, text: formatUpcoming(upcoming, input.within) };
+  },
+});
+
+export const calendarOperations = [calendarList, calendarSummary, calendarUpcoming];

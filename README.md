@@ -174,6 +174,7 @@ daou-gw-cli approval box --kind tempsave
 ```bash
 daou-gw-cli calendar list    [--calendar-id <id[,id...]>] [--from-date YYYY-MM-DD] [--to-date YYYY-MM-DD]
 daou-gw-cli calendar summary [--range today|day|week|month] [--date YYYY-MM-DD]
+daou-gw-cli calendar upcoming [--within <minutes>]   # N분 안에 시작하는 시간지정 일정 (알림용)
 ```
 
 - `--calendar-id`를 생략하면 내 캘린더 전체. 날짜를 생략하면 오늘부터 7일. 모든 날짜는 KST 기준입니다.

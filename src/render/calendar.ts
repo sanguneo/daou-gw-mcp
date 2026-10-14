@@ -1,5 +1,5 @@
 import { formatDateOnly, formatTimeOnly, weekdayKo } from '../core/time.js';
-import type { CalendarEventBundle } from '../api/calendar.js';
+import type { CalendarEventBundle, UpcomingEvent } from '../api/calendar.js';
 import { cleanLabel, isRecord, lines } from './common.js';
 
 function pickString(entry: Record<string, any>, keys: string[]): string | undefined {
@@ -80,6 +80,20 @@ export function formatCalendarSummary(bundle: CalendarEventBundle, label: string
     perCalendar.size > 0 ? `캘린더별: ${[...perCalendar.entries()].map(([name, count]) => `${name} ${count}`).join(', ')}` : null,
     entries.length > 0 ? '' : '일정이 없습니다.',
     ...dayBlocks,
+  );
+}
+
+export function formatUpcoming(items: UpcomingEvent[], within: number): string {
+  return lines(
+    `다가오는 일정 · ${within}분 이내`,
+    items.length > 0 ? `총 ${items.length}건` : '일정이 없습니다.',
+    ...items.map(({ minutesUntil, calendarName, event }) => {
+      const title = cleanLabel(pickString(event, ['title', 'subject', 'eventName', 'summary'])) || '내용 없음';
+      const place = cleanLabel(pickString(event, ['location', 'place', 'room']));
+      const start = pickString(event, ['startTime']);
+      const calendar = cleanLabel(calendarName ?? '');
+      return `- ${minutesUntil}분 후 ${formatTimeOnly(start)} | ${title}${place ? ` | ${place}` : ''}${calendar ? ` | ${calendar}` : ''}`;
+    }),
   );
 }
 

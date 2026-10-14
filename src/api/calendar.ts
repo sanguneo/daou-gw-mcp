@@ -49,6 +49,35 @@ export function clampEventsToRange(bundle: CalendarEventBundle): CalendarEventBu
   return { ...bundle, data };
 }
 
+export interface UpcomingEvent {
+  minutesUntil: number;
+  calendarName?: string;
+  event: Record<string, unknown>;
+}
+
+function isAllDay(entry: Record<string, unknown>): boolean {
+  return entry.timeType === 'allday' || entry.allDay === true || entry.type === 'holiday';
+}
+
+/** Timed events whose start falls in [now, until], soonest first. */
+export function upcomingEvents(bundle: CalendarEventBundle, now: Date, until: Date): UpcomingEvent[] {
+  const names = new Map(bundle.calendars.map((calendar) => [String(calendar.id), calendar.name]));
+  const result: UpcomingEvent[] = [];
+  for (const entry of bundle.data) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+    const event = entry as Record<string, unknown>;
+    if (isAllDay(event)) continue;
+    const start = typeof event.startTime === 'string' ? new Date(event.startTime) : null;
+    if (!start || Number.isNaN(start.getTime()) || start < now || start > until) continue;
+    result.push({
+      minutesUntil: Math.round((start.getTime() - now.getTime()) / 60_000),
+      calendarName: names.get(String(event.calendarId)),
+      event,
+    });
+  }
+  return result.sort((a, b) => a.minutesUntil - b.minutesUntil);
+}
+
 function kstStart(date: string): string {
   return `${date}T00:00:00.000+09:00`;
 }

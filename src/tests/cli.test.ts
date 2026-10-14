@@ -750,6 +750,67 @@ describe('calendar summary cli', () => {
     }
   });
 
+  it('drops out-of-window events from calendar list too', async () => {
+    await useTempHome();
+    const server = await startServer(routes({
+      '/api/user/session': sessionRoute,
+      '/api/calendar/user/7/calendar': (_req, res) => json(res, { data: [{ id: 7, name: '휴일일정' }] }),
+      '/api/calendar/event': (_req, res) => json(res, {
+        data: [
+          { id: 1, calendarId: 7, title: '광복절', timeType: 'allday', startTime: '2026-08-17T00:00:00.000+09:00' },
+          { id: 2, calendarId: 7, title: '크리스마스', timeType: 'allday', startTime: '2026-12-25T00:00:00.000+09:00' },
+        ],
+      }),
+    }));
+
+    try {
+      await saveConfig({ base_url: server.baseUrl });
+      await saveSession({ user_id: SESSION_USER.id, cookies: COOKIE });
+      const { value, output } = await captureStdout(() => runCli([
+        'calendar', 'list', '--from-date', '2026-08-17', '--to-date', '2026-08-23',
+      ]));
+
+      expect(value).toBe(0);
+      expect(output).toContain('항목 수: 1');
+      expect(output).toContain('광복절');
+      expect(output).not.toContain('크리스마스');
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('lists only timed events starting within the window', async () => {
+    await useTempHome();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-05-06T08:30:00.000+09:00'));
+    const server = await startServer(routes({
+      '/api/user/session': sessionRoute,
+      '/api/calendar/user/7/calendar': (_req, res) => json(res, { data: [{ id: 7, name: '회사 일정' }] }),
+      '/api/calendar/event': (_req, res) => json(res, {
+        data: [
+          { id: 1, calendarId: 7, title: '지난회의', startTime: '2026-05-06T08:00:00.000+09:00' },
+          { id: 2, calendarId: 7, title: '주간회의', startTime: '2026-05-06T09:00:00.000+09:00', location: '회의실 A' },
+          { id: 3, calendarId: 7, title: '점심약속', startTime: '2026-05-06T12:00:00.000+09:00' },
+          { id: 4, calendarId: 7, title: '워크샵', timeType: 'allday', startTime: '2026-05-06T00:00:00.000+09:00' },
+        ],
+      }),
+    }));
+
+    try {
+      await saveConfig({ base_url: server.baseUrl });
+      await saveSession({ user_id: SESSION_USER.id, cookies: COOKIE });
+      const { value, output } = await captureStdout(() => runCli(['calendar', 'upcoming', '--within', '60', '--json']));
+
+      expect(value).toBe(0);
+      const items = JSON.parse(output);
+      expect(items).toHaveLength(1);
+      expect(items[0]).toMatchObject({ minutesUntil: 30, calendarName: '회사 일정', event: { title: '주간회의' } });
+    } finally {
+      vi.useRealTimers();
+      await server.close();
+    }
+  });
+
   it('expands a week range around the anchor date', async () => {
     await useTempHome();
     let requested = '';
