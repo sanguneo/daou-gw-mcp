@@ -779,6 +779,44 @@ describe('calendar summary cli', () => {
     }
   });
 
+  it('keeps multi-day leave that overlaps the window and labels followed calendars', async () => {
+    await useTempHome();
+    let requested = '';
+    const server = await startServer(routes({
+      '/api/user/session': sessionRoute,
+      '/api/calendar/user/7/calendar': (_req, res) => json(res, { data: [{ id: 7, name: '내 일정' }] }),
+      '/api/calendar/feed': (_req, res) => json(res, {
+        data: [{ id: 4992, calendar: { id: 542, name: '휴가 일정', owner: { id: 3, name: '이순리' } } }],
+      }),
+      '/api/calendar/event': (req, res) => {
+        requested = req.url ?? '';
+        json(res, {
+          data: [
+            { id: 1, calendarId: 542, summary: '육아휴직', timeType: 'allday', startTime: '2026-08-03T00:00:00.000+09:00', endTime: '2026-10-30T00:00:00.000+09:00' },
+            { id: 2, calendarId: 542, summary: '지난연차', timeType: 'allday', startTime: '2026-10-05T00:00:00.000+09:00', endTime: '2026-10-05T00:00:00.000+09:00' },
+          ],
+        });
+      },
+    }));
+
+    try {
+      await saveConfig({ base_url: server.baseUrl });
+      await saveSession({ user_id: SESSION_USER.id, cookies: COOKIE });
+      const { value, output } = await captureStdout(() => runCli([
+        'calendar', 'summary', '--range', 'week', '--date', '2026-10-14', '--following',
+      ]));
+
+      expect(value).toBe(0);
+      expect(new URL(requested, 'http://x').searchParams.getAll('calendarIds[]')).toEqual(['7', '542']);
+      expect(output).toContain('총 1건');
+      expect(output).toContain('2026-10-12(월)');
+      expect(output).toContain('2026-08-03~2026-10-30 | 육아휴직 | 이순리 휴가 일정');
+      expect(output).not.toContain('지난연차');
+    } finally {
+      await server.close();
+    }
+  });
+
   it('lists only timed events starting within the window', async () => {
     await useTempHome();
     vi.useFakeTimers({ toFake: ['Date'] });

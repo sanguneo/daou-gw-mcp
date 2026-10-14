@@ -22,8 +22,10 @@ function formatEntry(entry: any, index: number, calendarNames: Map<string, strin
   const calendarId = entry.calendarId === undefined || entry.calendarId === null ? '' : String(entry.calendarId);
   const calendarName = cleanLabel(calendarNames.get(calendarId) ?? '') || (calendarId ? `캘린더 ${calendarId}` : '');
 
+  const startDay = formatDateOnly(start ?? end);
+  const endDay = end ? formatDateOnly(end) : startDay;
   const dateLabel = allDay
-    ? formatDateOnly(start ?? end)
+    ? (endDay > startDay ? `${startDay}~${endDay}` : startDay)
     : `${formatDateOnly(start)} ${formatTimeOnly(start)}~${formatTimeOnly(end)}`;
 
   return `${index}. ${dateLabel} | ${title}${place ? ` | ${place}` : ''}${calendarName ? ` | ${calendarName}` : ''}`;
@@ -51,7 +53,8 @@ export function formatCalendarSummary(bundle: CalendarEventBundle, label: string
 
   const byDay = new Map<string, Record<string, any>[]>();
   for (const entry of entries) {
-    const day = eventDay(entry);
+    const start = eventDay(entry);
+    const day = start < bundle.fromDate ? bundle.fromDate : start;
     const bucket = byDay.get(day);
     if (bucket) bucket.push(entry);
     else byDay.set(day, [entry]);

@@ -4,6 +4,8 @@ import { defineOperation } from '../core/registry.js';
 import { addDaysKst, monthRangeKst, todayKst, weekRangeKst } from '../core/time.js';
 import { formatCalendar, formatCalendarSummary, formatUpcoming } from '../render/calendar.js';
 
+const following = z.boolean().optional().describe("Also include colleagues' calendars you follow (e.g. who is on leave)");
+
 export const calendarList = defineOperation({
   id: 'calendar.list',
   tool: 'calendar_list',
@@ -13,6 +15,7 @@ export const calendarList = defineOperation({
     calendar_id: z.string().optional().describe('Calendar id, or several separated by commas'),
     from_date: z.string().optional().describe('YYYY-MM-DD, defaults to today'),
     to_date: z.string().optional().describe('YYYY-MM-DD, defaults to a week out'),
+    following,
   }),
   auth: true,
   run: async (ctx, input) => {
@@ -22,6 +25,7 @@ export const calendarList = defineOperation({
       input.calendar_id,
       input.from_date || undefined,
       input.to_date || undefined,
+      input.following,
     ));
     return { data: bundle, text: formatCalendar(bundle) };
   },
@@ -45,6 +49,7 @@ export const calendarSummary = defineOperation({
     range: z.enum(RANGES).default('today').describe('Summary window'),
     date: z.string().optional().describe('Anchor date YYYY-MM-DD, defaults to today'),
     calendar_id: z.string().optional().describe('Calendar id, or several separated by commas'),
+    following,
   }),
   auth: true,
   run: async (ctx, input) => {
@@ -56,7 +61,7 @@ export const calendarSummary = defineOperation({
         : { from: anchor, to: anchor };
 
     const bundle = clampEventsToRange(
-      await fetchCalendarEvents(ctx.baseUrl(), ctx.session, input.calendar_id, window.from, window.to),
+      await fetchCalendarEvents(ctx.baseUrl(), ctx.session, input.calendar_id, window.from, window.to, input.following),
     );
     return { data: bundle, text: formatCalendarSummary(bundle, RANGE_LABEL[input.range]) };
   },

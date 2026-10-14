@@ -37,14 +37,26 @@ export function eventDateKst(entry: unknown): string {
   return start ? formatDateOnly(start) : '';
 }
 
+/** The KST calendar day an event ends on (its start day when it has no end), or ''. */
+export function eventEndDateKst(entry: unknown): string {
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return '';
+  const record = entry as Record<string, unknown>;
+  for (const key of ['endTime', 'endDateTime', 'end']) {
+    const value = record[key];
+    if (typeof value === 'string' && value.trim()) return formatDateOnly(value.trim());
+  }
+  return eventDateKst(entry);
+}
+
 /**
  * Holiday and recurring calendars answer with entries outside the requested
- * window, so a range view has to trim them itself.
+ * window, so a range view has to trim them itself. Multi-day events (leave,
+ * trips) that started earlier but still overlap the window are kept.
  */
 export function clampEventsToRange(bundle: CalendarEventBundle): CalendarEventBundle {
   const data = bundle.data.filter((entry) => {
-    const day = eventDateKst(entry);
-    return day !== '' && day >= bundle.fromDate && day <= bundle.toDate;
+    const start = eventDateKst(entry);
+    return start !== '' && start <= bundle.toDate && eventEndDateKst(entry) >= bundle.fromDate;
   });
   return { ...bundle, data };
 }
@@ -110,15 +122,37 @@ async function listUserCalendars(baseUrl: string, session: Session): Promise<Cal
   return Array.isArray(data?.data) ? data.data.filter(isCalendarSummary) : [];
 }
 
+/** Colleagues' calendars the user follows, named "<owner> <calendar>" so they stay distinguishable. */
+async function listFollowedCalendars(baseUrl: string, session: Session): Promise<CalendarSummary[]> {
+  const { status, data } = await requestJson<{ data?: unknown }>(
+    `${trimBaseUrl(baseUrl)}/api/calendar/feed?sort=${encodeURIComponent('sequence asc')}`,
+    { method: 'GET', headers: { Referer: `${trimBaseUrl(baseUrl)}/app/calendar`, Accept: 'application/json' } },
+    session,
+  );
+  if (status >= 400) throw new Error(`calendar feed http ${status}`);
+  if (!Array.isArray(data?.data)) return [];
+  return data.data
+    .map((follow) => (follow && typeof follow === 'object' ? (follow as { calendar?: unknown }).calendar : undefined))
+    .filter(isCalendarSummary)
+    .map((calendar) => {
+      const owner = (calendar as { owner?: { name?: string } }).owner?.name;
+      return { ...calendar, name: owner ? `${owner} ${calendar.name ?? ''}`.trim() : calendar.name };
+    });
+}
+
 export async function fetchCalendarEvents(
   baseUrl: string,
   session: Session,
   calendarId?: string,
   fromDate = todayKst(),
   toDate = addDaysKst(fromDate, 7),
+  following = false,
 ): Promise<CalendarEventBundle> {
   const explicitIds = parseExplicitCalendarIds(calendarId);
-  const calendars = await listUserCalendars(baseUrl, session);
+  const calendars = [
+    ...(await listUserCalendars(baseUrl, session)),
+    ...(following ? await listFollowedCalendars(baseUrl, session) : []),
+  ];
   const calendarIds = explicitIds ?? calendars.map((calendar) => String(calendar.id));
   if (calendarIds.length === 0) throw new Error('calendar ids missing');
 

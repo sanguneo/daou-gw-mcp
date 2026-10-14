@@ -21,6 +21,7 @@ metadata:
 | 조직도 | `org tree` | 트리 |
 | 직원검색 | `org search --query <q> [--refresh]` | employees[] |
 | 일정요약 | `calendar summary [--range today\|day\|week\|month] [--date YYYY-MM-DD]` | data[] |
+| 동료 휴가/일정 | `calendar summary --range week --following` (구독 캘린더 포함) | data[] |
 | 곧 시작할 일정 | `calendar upcoming [--within <minutes>]` | [].minutesUntil, event.title |
 | 메일목록 | `mail list --size N` | data.messageList[] |
 | 메일검색 | `mail search --query <q> --size N` | data.messageList[] |

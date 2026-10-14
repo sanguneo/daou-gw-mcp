@@ -173,7 +173,7 @@ daou-gw-cli approval box --kind tempsave
 
 ```bash
 daou-gw-cli calendar list    [--calendar-id <id[,id...]>] [--from-date YYYY-MM-DD] [--to-date YYYY-MM-DD]
-daou-gw-cli calendar summary [--range today|day|week|month] [--date YYYY-MM-DD]
+daou-gw-cli calendar summary [--range today|day|week|month] [--date YYYY-MM-DD] [--following]   # --following: 구독한 동료 캘린더 포함 (list도 동일)
 daou-gw-cli calendar upcoming [--within <minutes>]   # N분 안에 시작하는 시간지정 일정 (알림용)
 ```
 

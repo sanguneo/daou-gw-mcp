@@ -15,6 +15,7 @@ This tool is installed globally as `daou-gw-cli`. All commands support `--json` 
 | Hand the session to a browser | `daou-gw-cli session handoff` |
 | Today's calendar | `daou-gw-cli calendar list --from-date $(date +%F) --to-date $(date +%F)` |
 | Calendar digest | `daou-gw-cli calendar summary --range today\|day\|week\|month [--date YYYY-MM-DD]` |
+| Who is on leave (followed colleagues) | `daou-gw-cli calendar summary --range week --following` |
 | Starting soon (reminders) | `daou-gw-cli calendar upcoming [--within <minutes>] --json` |
 | Org chart | `daou-gw-cli org tree` |
 | Find a person | `daou-gw-cli org search --query <name/dept/position>` |
