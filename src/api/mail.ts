@@ -2,6 +2,7 @@ import { basename } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { joinUrl, requestText } from '../core/http.js';
 import type { Config, Session } from '../core/types.js';
+import { sendViaSmtp, smtpSettings } from './smtp.js';
 
 export type MailAction = 'list' | 'search' | 'delete' | 'send' | 'imageUpload';
 
@@ -231,9 +232,72 @@ export interface SendMailOptions {
   reservedAt?: string;
   receiveNoti?: boolean;
   saveSent?: boolean;
+  transport?: MailTransport;
 }
 
+export const MAIL_TRANSPORTS = ['auto', 'smtp', 'web'] as const;
+export type MailTransport = (typeof MAIL_TRANSPORTS)[number];
+
+function withTransport(raw: string, extra: Record<string, unknown>): string {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = undefined;
+  }
+  const base = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : { response: raw };
+  return JSON.stringify({ ...base, ...extra });
+}
+
+/**
+ * Send through the groupware's SMTP server first and fall back to the web API.
+ * `auto` (default) uses SMTP when a password is saved and the mail needs no
+ * web-only feature (inline image upload, reserved sending); any SMTP failure
+ * then retries over the web API. `smtp` / `web` force one path.
+ */
 export async function sendMail(cfg: Config, session: Session, baseUrl: string, options: SendMailOptions): Promise<string> {
+  const configured = MAIL_TRANSPORTS.find((t) => t === cfg.mail_transport?.trim());
+  const transport: MailTransport = options.transport ?? configured ?? 'auto';
+  const webOnly = Boolean(options.imagePath?.trim() || options.reservedAt?.trim());
+  if (transport === 'web' || (transport === 'auto' && webOnly)) {
+    return withTransport(await sendMailWeb(cfg, session, baseUrl, options), { transport: 'web' });
+  }
+  if (webOnly) throw new Error('image and reserved sending need the web transport');
+
+  const to = options.to.trim();
+  const subject = options.subject.trim();
+  if (!to) throw new Error('to required');
+  if (!subject) throw new Error('subject required');
+  if (!options.content.trim()) throw new Error('content or image required');
+  const from = senderEmail(cfg, session, options.senderEmail);
+  if (!from) throw new Error('sender email required; pass --from-email or set DAOU_MAIL_SENDER_EMAIL');
+
+  const settings = smtpSettings(cfg, baseUrl, from);
+  if (!settings) {
+    if (transport === 'smtp') throw new Error('smtp needs a saved password (daou-gw-cli config set --password)');
+    return withTransport(await sendMailWeb(cfg, session, baseUrl, options), { transport: 'web', fallback: 'no saved password for smtp' });
+  }
+
+  try {
+    return await sendViaSmtp(settings, {
+      from,
+      fromName: senderName(cfg, options.senderName),
+      to,
+      cc: options.cc?.trim(),
+      bcc: options.bcc?.trim(),
+      subject,
+      html: options.content,
+      readReceipt: options.receiveNoti,
+      saveSent: options.saveSent,
+    });
+  } catch (err) {
+    if (transport === 'smtp') throw err;
+    const reason = err instanceof Error ? err.message : String(err);
+    return withTransport(await sendMailWeb(cfg, session, baseUrl, options), { transport: 'web', fallback: `smtp failed: ${reason}` });
+  }
+}
+
+async function sendMailWeb(cfg: Config, session: Session, baseUrl: string, options: SendMailOptions): Promise<string> {
   const to = options.to.trim();
   const subject = options.subject.trim();
   if (!to) throw new Error('to required');

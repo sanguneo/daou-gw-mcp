@@ -16,6 +16,11 @@ export interface Config {
   mail_image_upload_url?: string;
   mail_sender_email?: string;
   mail_sender_name?: string;
+  /** `auto` (SMTP, then web API), `smtp` or `web`. */
+  mail_transport?: string;
+  smtp_host?: string;
+  smtp_port?: string;
+  imap_port?: string;
   board_create_url?: string;
   board_update_url?: string;
   board_attach_url?: string;

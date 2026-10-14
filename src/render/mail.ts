@@ -37,5 +37,9 @@ export function formatMailAction(raw: string, action: 'delete' | 'send'): string
     `- 결과: ${typeof parsed.ok === 'boolean' ? (parsed.ok ? '성공' : '실패') : '성공'}`,
     `- 상태: ${typeof parsed.status === 'number' ? parsed.status : '-'}`,
     `- endpoint: ${typeof parsed.endpoint === 'string' ? parsed.endpoint : '-'}`,
+    typeof parsed.transport === 'string' ? `- 경로: ${parsed.transport}${typeof parsed.fallback === 'string' ? ` (${parsed.fallback})` : ''}` : null,
+    typeof parsed.savedSent === 'boolean'
+      ? `- 보낸편지함 저장: ${parsed.savedSent ? '예' : `실패 (${String(parsed.saveSentError ?? '')})`}`
+      : null,
   );
 }

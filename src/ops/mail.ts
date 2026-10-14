@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
-import { deleteMail, listMail, normalizeMailIds, searchMail, sendMail } from '../api/mail.js';
+import { MAIL_TRANSPORTS, deleteMail, listMail, normalizeMailIds, searchMail, sendMail } from '../api/mail.js';
 import { defineOperation, rawResult } from '../core/registry.js';
 import { formatMailAction, formatMailList } from '../render/mail.js';
 
@@ -65,7 +65,7 @@ export const mailSend = defineOperation({
   id: 'mail.send',
   tool: 'mail_send',
   cli: ['mail', 'send'],
-  summary: 'Send HTML mail using the saved session',
+  summary: 'Send HTML mail over the groupware SMTP server, falling back to the web API',
   input: z.strictObject({
     to: z.string().min(1).describe('Recipient address(es), comma separated'),
     subject: z.string().min(1).describe('Mail subject'),
@@ -78,6 +78,7 @@ export const mailSend = defineOperation({
     reserved_at: z.string().optional().describe('ISO timestamp; sending is reserved when set'),
     receive_noti: z.boolean().optional().describe('Request a read receipt'),
     save_sent: z.boolean().optional().describe('Keep a copy in Sent'),
+    transport: z.enum(MAIL_TRANSPORTS).optional().describe('auto (default: SMTP, web API fallback), smtp or web'),
   }),
   schemaExtra: { anyOf: [{ required: ['content'] }, { required: ['image_path'] }] },
   cliAlias: { sender_email: 'from-email', sender_name: 'from-name', image_path: 'image' },
@@ -104,6 +105,7 @@ export const mailSend = defineOperation({
       reservedAt: input.reserved_at,
       receiveNoti: input.receive_noti,
       saveSent: input.save_sent,
+      transport: input.transport,
     });
     return rawResult(raw, formatMailAction(raw, 'send'));
   },

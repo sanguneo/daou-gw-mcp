@@ -26,7 +26,7 @@ metadata:
 | 메일목록 | `mail list --size N` | data.messageList[] |
 | 메일검색 | `mail search --query <q> --size N` | data.messageList[] |
 | 메일삭제 | `mail delete --id X [--id Y ...]` | – |
-| 메일발송 | `mail send --to <a> --subject <s> --content <html>` | 응답 code/data |
+| 메일발송 | `mail send --to <a> --subject <s> --content <html> [--transport auto\|smtp\|web]` (SMTP 우선, 웹 fallback) | transport, fallback, savedSent |
 | 캘린더 | `calendar list [--from-date YYYY-MM-DD] [--to-date YYYY-MM-DD]` | data[].title, startTime |
 | 결재할일 | `approval todo [--size N]` | data[] |
 | 결재참조 | `approval reference [--size N]` | data[] |

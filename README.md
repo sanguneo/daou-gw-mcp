@@ -116,8 +116,13 @@ daou-gw-cli mail search --query <text> [--folder Inbox] [--page 1] [--size 20]
 daou-gw-cli mail delete --id <mail-id> [--id <mail-id> ...] [--folder Inbox]
 daou-gw-cli mail send   --to <email[,email...]> --subject <text> \
                         (--content <html> | --html-file <path> | --image <path>) \
-                        [--cc <email>] [--bcc <email>] [--from-email <email>] [--reserved-at <iso>]
+                        [--cc <email>] [--bcc <email>] [--from-email <email>] [--reserved-at <iso>] \
+                        [--transport auto|smtp|web]
 ```
+
+- 발송 경로: 기본(`auto`)은 그룹웨어 **SMTP**(기본 `<base_url 호스트>:25`, STARTTLS, 저장된 비밀번호로 인증)로 보내고, SMTP가 실패하거나 비밀번호가 없으면 **웹 API**로 fallback합니다. `--image`/`--reserved-at`은 웹 전용이라 바로 웹으로 보냅니다.
+- SMTP로 보낸 메일은 IMAP(기본 993)으로 보낸편지함에 복사본을 넣습니다(`--save-sent false`면 생략).
+- 설정: `mail_transport`, `smtp_host`, `smtp_port`, `imap_port` (env `DAOU_MAIL_TRANSPORT`, `DAOU_SMTP_HOST`, `DAOU_SMTP_PORT`, `DAOU_IMAP_PORT`)
 
 - 발신자 주소 우선순위: `--from-email` → 설정 `mail_sender_email` → `DAOU_MAIL_SENDER_EMAIL` → `username`
 - `--image`는 업로드 후 본문에 `<img>`로 삽입되고, `--reserved-at`을 주면 예약 발송으로 전환됩니다.
@@ -284,6 +289,10 @@ stdio 트랜스포트로 동작합니다. 각 툴의 `inputSchema`는 CLI 플래
 | `DAOU_MAIL_IMAGE_UPLOAD_URL` | `mail_image_upload_url` |
 | `DAOU_MAIL_SENDER_EMAIL` | `mail_sender_email` |
 | `DAOU_MAIL_SENDER_NAME` | `mail_sender_name` |
+| `DAOU_MAIL_TRANSPORT` | `mail_transport` |
+| `DAOU_SMTP_HOST` | `smtp_host` |
+| `DAOU_SMTP_PORT` | `smtp_port` |
+| `DAOU_IMAP_PORT` | `imap_port` |
 | `DAOU_BOARD_CREATE_URL` | `board_create_url` |
 | `DAOU_BOARD_UPDATE_URL` | `board_update_url` |
 | `DAOU_BOARD_ATTACH_URL` | `board_attach_url` |

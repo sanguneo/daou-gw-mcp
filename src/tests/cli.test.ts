@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
+import type { AddressInfo } from 'node:net';
+import { SMTPServer } from 'smtp-server';
 import { loadConfig, loadSession, saveConfig, saveSession } from '../core/storage.js';
 import { todayKst } from '../core/time.js';
 import { runCli } from '../surfaces/cli.js';
@@ -154,6 +156,99 @@ describe('cli surface', () => {
       });
     } finally {
       await server.close();
+    }
+  });
+
+  it('sends over SMTP first when a password is saved', async () => {
+    await useTempHome();
+    vi.stubEnv('NODE_TLS_REJECT_UNAUTHORIZED', '0');
+    let webCalled = false;
+    const web = await startServer(routes({
+      '/api/user/session': sessionRoute,
+      '/api/mail/message/send': (_req, res) => {
+        webCalled = true;
+        json(res, { ok: true });
+      },
+    }));
+    const received: { user?: string; rcpt: string[]; data: string } = { rcpt: [], data: '' };
+    const smtp = new SMTPServer({
+      logger: false,
+      onAuth(auth, _session, cb) {
+        received.user = auth.username;
+        cb(auth.password === 'pw' ? null : new Error('bad auth'), { user: auth.username });
+      },
+      onRcptTo(address, _session, cb) {
+        received.rcpt.push(address.address);
+        cb();
+      },
+      onData(stream, _session, cb) {
+        stream.on('data', (chunk: Buffer) => { received.data += chunk.toString(); });
+        stream.on('end', () => cb());
+      },
+    });
+    await new Promise<void>((resolve) => smtp.listen(0, '127.0.0.1', resolve));
+    const port = (smtp.server.address() as AddressInfo).port;
+    const noImap = new SMTPServer({ logger: false });
+    await new Promise<void>((resolve) => noImap.listen(0, '127.0.0.1', resolve));
+    const deadImapPort = (noImap.server.address() as AddressInfo).port;
+    await new Promise<void>((resolve) => noImap.close(() => resolve()));
+
+    try {
+      await saveConfig({
+        base_url: web.baseUrl, password: 'pw', smtp_host: '127.0.0.1', smtp_port: String(port),
+        imap_port: String(deadImapPort), mail_sender_email: 'sender@example.com', mail_sender_name: 'Tester',
+      });
+      await saveSession({ user_id: SESSION_USER.id, cookies: COOKIE });
+      const { value, output } = await captureStdout(() => runCli([
+        'mail', 'send', '--to', 'receiver@example.com', '--subject', 'Hello', '--content', '<p>body</p>', '--json',
+      ]));
+
+      expect(value).toBe(0);
+      const result = JSON.parse(output);
+      expect(result).toMatchObject({ ok: true, transport: 'smtp', accepted: ['receiver@example.com'], savedSent: false });
+      expect(typeof result.saveSentError).toBe('string');
+      expect(received.user).toBe('sender@example.com');
+      expect(received.rcpt).toEqual(['receiver@example.com']);
+      expect(received.data).toContain('Subject: Hello');
+      expect(webCalled).toBe(false);
+    } finally {
+      await new Promise<void>((resolve) => smtp.close(() => resolve()));
+      await web.close();
+    }
+  });
+
+  it('falls back to the web API when SMTP is unreachable', async () => {
+    await useTempHome();
+    let payload: any = null;
+    const web = await startServer(routes({
+      '/api/user/session': sessionRoute,
+      '/api/mail/message/send': async (req, res) => {
+        payload = JSON.parse(await readBody(req));
+        json(res, { ok: true });
+      },
+    }));
+    const closed = new SMTPServer({ logger: false });
+    await new Promise<void>((resolve) => closed.listen(0, '127.0.0.1', resolve));
+    const deadPort = (closed.server.address() as AddressInfo).port;
+    await new Promise<void>((resolve) => closed.close(() => resolve()));
+
+    try {
+      await saveConfig({
+        base_url: web.baseUrl, password: 'pw', smtp_host: '127.0.0.1', smtp_port: String(deadPort),
+        mail_sender_email: 'sender@example.com',
+      });
+      await saveSession({ user_id: SESSION_USER.id, cookies: COOKIE });
+      const { value, output } = await captureStdout(() => runCli([
+        'mail', 'send', '--to', 'receiver@example.com', '--subject', 'Hello', '--content', '<p>body</p>', '--json',
+      ]));
+
+      expect(value).toBe(0);
+      const result = JSON.parse(output);
+      expect(result).toMatchObject({ ok: true, transport: 'web' });
+      expect(result.fallback).toMatch(/^smtp failed: /);
+      expect(payload).toMatchObject({ to: 'receiver@example.com', subject: 'Hello' });
+    } finally {
+      await web.close();
     }
   });
 
