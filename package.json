@@ -1,6 +1,6 @@
 {
   "name": "daou-gw-cli",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Unofficial CLI and MCP server for Daou Office groupware",
   "license": "UNLICENSED",
   "keywords": [
