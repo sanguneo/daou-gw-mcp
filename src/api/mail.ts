@@ -2,6 +2,7 @@ import { basename } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { joinUrl, requestText } from '../core/http.js';
 import type { Config, Session } from '../core/types.js';
+import { userSession } from '../core/auth.js';
 import { sendViaSmtp, smtpSettings } from './smtp.js';
 
 export type MailAction = 'list' | 'search' | 'delete' | 'send' | 'imageUpload';
@@ -212,6 +213,21 @@ function senderName(cfg: Config, explicit?: string): string {
   return [explicit, cfg.mail_sender_name, cfg.username].map((v) => v?.trim() ?? '').find(Boolean) ?? '';
 }
 
+/**
+ * Sender address and name: explicit flags, then saved config, then the signed-in
+ * user's own groupware profile, so nobody has to configure them by hand.
+ */
+async function resolveSender(cfg: Config, session: Session, baseUrl: string, options: SendMailOptions): Promise<{ email: string; name: string }> {
+  const email = senderEmail(cfg, session, options.senderEmail);
+  const name = [options.senderName, cfg.mail_sender_name].map((v) => v?.trim() ?? '').find(Boolean) ?? '';
+  if (email && name) return { email, name };
+  const profile = await userSession(baseUrl, session).catch(() => null);
+  return {
+    email: email || profile?.email?.trim() || '',
+    name: name || profile?.name?.trim() || senderName(cfg),
+  };
+}
+
 function normalizeReservedDate(value?: string): string {
   const raw = value?.trim() ?? '';
   if (!raw) return '';
@@ -255,7 +271,9 @@ function withTransport(raw: string, extra: Record<string, unknown>): string {
  * web-only feature (inline image upload, reserved sending); any SMTP failure
  * then retries over the web API. `smtp` / `web` force one path.
  */
-export async function sendMail(cfg: Config, session: Session, baseUrl: string, options: SendMailOptions): Promise<string> {
+export async function sendMail(cfg: Config, session: Session, baseUrl: string, requested: SendMailOptions): Promise<string> {
+  const sender = await resolveSender(cfg, session, baseUrl, requested);
+  const options = { ...requested, senderEmail: sender.email, senderName: sender.name };
   const configured = MAIL_TRANSPORTS.find((t) => t === cfg.mail_transport?.trim());
   const transport: MailTransport = options.transport ?? configured ?? 'auto';
   const webOnly = Boolean(options.imagePath?.trim() || options.reservedAt?.trim());
@@ -281,7 +299,7 @@ export async function sendMail(cfg: Config, session: Session, baseUrl: string, o
   try {
     return await sendViaSmtp(settings, {
       from,
-      fromName: senderName(cfg, options.senderName),
+      fromName: options.senderName,
       to,
       cc: options.cc?.trim(),
       bcc: options.bcc?.trim(),

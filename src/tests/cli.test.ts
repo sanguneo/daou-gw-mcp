@@ -252,6 +252,31 @@ describe('cli surface', () => {
     }
   });
 
+  it('takes the sender from the groupware profile when nothing is configured', async () => {
+    await useTempHome();
+    let payload: any = null;
+    const web = await startServer(routes({
+      '/api/user/session': (_req, res) => json(res, { data: { ...SESSION_USER, name: '나상권', email: 'me@example.com' } }),
+      '/api/mail/message/send': async (req, res) => {
+        payload = JSON.parse(await readBody(req));
+        json(res, { ok: true });
+      },
+    }));
+
+    try {
+      await saveConfig({ base_url: web.baseUrl, username: 'me' });
+      await saveSession({ user_id: SESSION_USER.id, cookies: COOKIE });
+      const { value } = await captureStdout(() => runCli([
+        'mail', 'send', '--to', 'receiver@example.com', '--subject', 'Hello', '--content', '<p>body</p>',
+      ]));
+
+      expect(value).toBe(0);
+      expect(payload).toMatchObject({ senderEmail: 'me@example.com', senderName: '나상권' });
+    } finally {
+      await web.close();
+    }
+  });
+
   it('collects repeated --id flags when deleting mail', async () => {
     await useTempHome();
     let payload: any = null;

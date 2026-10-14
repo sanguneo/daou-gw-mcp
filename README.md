@@ -124,7 +124,7 @@ daou-gw-cli mail send   --to <email[,email...]> --subject <text> \
 - SMTP로 보낸 메일은 IMAP(기본 993)으로 보낸편지함에 복사본을 넣습니다(`--save-sent false`면 생략).
 - 설정: `mail_transport`, `smtp_host`, `smtp_port`, `imap_port` (env `DAOU_MAIL_TRANSPORT`, `DAOU_SMTP_HOST`, `DAOU_SMTP_PORT`, `DAOU_IMAP_PORT`)
 
-- 발신자 주소 우선순위: `--from-email` → 설정 `mail_sender_email` → `DAOU_MAIL_SENDER_EMAIL` → `username`
+- 발신자 주소·이름 우선순위: `--from-email`/`--from-name` → 설정 `mail_sender_email`/`mail_sender_name` → `DAOU_MAIL_SENDER_EMAIL`/`DAOU_MAIL_SENDER_NAME` → **로그인한 사용자의 그룹웨어 프로필**(이메일·이름). 보통은 아무것도 설정할 필요가 없습니다.
 - `--image`는 업로드 후 본문에 `<img>`로 삽입되고, `--reserved-at`을 주면 예약 발송으로 전환됩니다.
 
 ### 📋 전자결재 조회

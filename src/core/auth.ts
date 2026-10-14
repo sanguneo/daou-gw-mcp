@@ -4,6 +4,7 @@ import type { Session } from './types.js';
 export interface UserSessionInfo {
   id: number;
   name?: string;
+  email?: string;
 }
 
 function ensureBaseUrl(baseUrl?: string): string {
@@ -62,14 +63,14 @@ export function tokenFromSession(session: Session): string | undefined {
 }
 
 export async function userSession(baseUrl: string, session: Session): Promise<UserSessionInfo> {
-  const { status, data } = await requestJson<{ data?: { id?: number; name?: string } }>(
+  const { status, data } = await requestJson<{ data?: { id?: number; name?: string; email?: string } }>(
     `${ensureBaseUrl(baseUrl)}/api/user/session`,
     { method: 'GET' },
     session,
   );
   if (status >= 400) throw new Error(`session http ${status}`);
   if (!data?.data?.id) throw new Error('empty session');
-  return { id: data.data.id, name: data.data.name };
+  return { id: data.data.id, name: data.data.name, email: data.data.email };
 }
 
 export async function validateSession(baseUrl: string, session: Session): Promise<boolean> {
